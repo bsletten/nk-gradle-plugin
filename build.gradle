@@ -1,12 +1,25 @@
 apply {
     plugin 'java'
     plugin 'groovy'
+    plugin 'maven'
 }
 
-group = 'gradle-plugin-netkernel'
+repositories { 
+  mavenCentral()
+}
+
+group = 'net.bosatsu.gradle'
 version = '0.0.1'
 
 dependencies {
     compile gradleApi()
     groovy localGroovy()
+}
+
+uploadArchives { 
+  repositories { 
+    mavenDeployer { 
+      repository(url: uri('repo'))
+    }
+  }
 }

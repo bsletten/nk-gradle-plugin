@@ -1,0 +1,12 @@
+apply {
+    plugin 'java'
+    plugin 'groovy'
+}
+
+group = 'gradle-plugin-netkernel'
+version = '0.0.1'
+
+dependencies {
+    compile gradleApi()
+    groovy localGroovy()
+}

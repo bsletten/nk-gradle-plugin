@@ -3,7 +3,7 @@ package net.bosatsu.gradle
 import org.gradle.api.DefaultTask
 import org.gradle.api.tasks.TaskAction
 
-class NKGreetingTask extends DefaultTask { 
+class NKGreeting extends DefaultTask { 
   String greeting = 'hello from GreetingTask'
 
   @TaskAction

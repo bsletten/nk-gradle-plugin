@@ -8,17 +8,12 @@ repositories {
 }
 
 group = 'net.bosatsu.gradle'
-version = '0.0.3'
+version = '0.0.3-SNAPSHOT'
 
 dependencies {
     compile gradleApi()
+	// TODO: Investigate if we can use the Groovy that comes w/ NetKernel to avoid
+	// version problems.
+  	testCompile 'junit:junit:4.7'
     groovy localGroovy()
-}
-
-uploadArchives { 
-  repositories { 
-    mavenDeployer { 
-      repository(url: uri('repo'))
-    }
-  }
 }

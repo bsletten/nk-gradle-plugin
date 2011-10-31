@@ -1,0 +1,2 @@
+- Remove the need for dependsOnNetkernelModule by interrogating the module.xml files, etc/modules.xml, etc.
+- Retrieve dependent libraries from Maven rather than storing them in a CM system

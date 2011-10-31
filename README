@@ -1,1 +1,3 @@
 A Gradle Plugin for building NetKernel modules.
+
+Generous Gradle guidance provided by @tlberglund (https://github.com/tlberglund).

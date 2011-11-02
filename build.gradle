@@ -4,11 +4,11 @@ apply {
 }
 
 repositories { 
-  mavenCentral()
+  	mavenCentral()
 }
 
 group = 'net.bosatsu.gradle'
-version = '0.0.3-SNAPSHOT'
+version = '0.0.5-SNAPSHOT'
 
 dependencies {
     compile gradleApi()

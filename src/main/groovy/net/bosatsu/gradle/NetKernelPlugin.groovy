@@ -51,6 +51,7 @@ class NetKernelPlugin implements Plugin<Project> {
 		println "Configuring Repositories"
 		setUpRepositories(project, [ "${project.projectDir}/lib", 
 								 "${project.netKernelRootDir}/lib",
+								 "${project.netKernelRootDir}/lib/expanded",
 								 "${project.netKernelRootDir}/modules" ])	
 	}
 
@@ -75,7 +76,6 @@ class NetKernelPlugin implements Plugin<Project> {
 		}
 	
 		project.tasks.clean.configure {
-			println "Configurating the clean"
 			project.fileTree {
 	            from project.projectDir
 				include '**/*.class'
@@ -144,7 +144,7 @@ class NetKernelPlugin implements Plugin<Project> {
 					//version = "${project.netKernelRootDir}/$version"
 					//version = version.substring(8)
 				} else if(version.startsWith("file:/")) {
-					version = version.substring(5)
+					//version = version.substring(5)
 				}
 			
 				addDependenciesForModule(project, m, version)
@@ -171,13 +171,36 @@ class NetKernelPlugin implements Plugin<Project> {
 			def module = new XmlSlurper().parse(file)
 			
 			if(module.system.classloader.size() > 0) {
-				println "******Adding additional dependencies to project for ${moduleURI}"
 				setUpDependencies(project, new File("${moduleURI}/lib").listFiles())
 			}
 		} else {
-			def files = project.fileTree(dir: "${project.netKernelRootDir}/modules", 
-				include : moduleLocation.substring(8))
+			def jarDir
+			
+			if(moduleLocation.startsWith("modules")) {
+				jarDir = "${project.netKernelRootDir}/modules"
+				moduleLocation = moduleLocation.substring(8)
+			} else {
+				// jarDir = parentDirOf modulelocation
+				println "NOT YET SUPPORTED!!!!"
+			}
+			
+			def files = project.fileTree(dir: jarDir, include : moduleLocation)
 			setUpDependencies(project, files)
+			
+			// Jar modules might have embedded
+
+			def embeddedLibs = project.zipTree("${jarDir}/${moduleLocation}").matching { include '**/*.jar' }
+			
+			def expandedLibNames = []
+			def prefix = "${project.netKernelRootDir}/lib/expanded"
+
+			embeddedLibs.each { e->
+				expandedLibNames << e.getName()
+			}
+			
+			def expandedLibs = project.fileTree(dir: prefix, includes: expandedLibNames )
+
+			setUpDependencies(project, expandedLibs)
 		}
 	}
 
@@ -188,7 +211,6 @@ class NetKernelPlugin implements Plugin<Project> {
 	}
 
 	void setUpDependencies(Project project, def fileCollection) {
-		println fileCollection
 		
 		def libDirDeps = buildDependencyMapFromList(fileCollection)
 		libDirDeps.each { lib, jarInfo -> //lib, ver ->

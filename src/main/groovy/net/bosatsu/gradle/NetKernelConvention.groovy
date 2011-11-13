@@ -21,6 +21,12 @@ import org.gradle.api.Project
 class NetKernelConvention {
 	File netKernelRootDir
 	Project p
+
+	def modules
+
+	String packageName
+	String packageDescription
+	String packageVersion
 	
 	NetKernelConvention(Project p) {
 		this.p = p
@@ -37,5 +43,10 @@ class NetKernelConvention {
 		p.dependencies {
 	        compile otherProject
 		}
+	}
+	
+	def nkconfig(Closure closure) {
+		closure.delegate = this
+		closure()
 	}
 }

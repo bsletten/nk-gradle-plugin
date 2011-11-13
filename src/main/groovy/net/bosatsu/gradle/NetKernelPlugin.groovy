@@ -16,9 +16,12 @@
 
 package net.bosatsu.gradle
 
+import groovy.xml.MarkupBuilder
+
 import org.gradle.api.Project
 import org.gradle.api.Plugin
 import org.gradle.api.plugins.GroovyPlugin
+import org.gradle.api.tasks.bundling.Zip
 
 import net.bosatsu.util.JarInfoHelper
 import net.bosatsu.util.JarInfo
@@ -26,6 +29,7 @@ import net.bosatsu.util.JarInfo
 class NetKernelPlugin implements Plugin<Project> { 
 
 	static JarInfoHelper jarHelper = new JarInfoHelper()
+	static NKModuleHelper moduleHelper = new NKModuleHelper()
 
 	def nklibs = [
 		'urn.com.ten60.core.layer0',
@@ -33,15 +37,150 @@ class NetKernelPlugin implements Plugin<Project> {
     	'urn.com.ten60.core.netkernel.api',
     	'urn.com.ten60.core.netkernel.impl'
 	]
+	
+	void makePackageModuleFile(Project p, def tmpDir, def nonce) {
+		println "Making the module file"
+		def moduleFile = p.file(tmpDir + '/module.xml')
+		
+		def writer = new StringWriter()
+		def xml = new MarkupBuilder(writer)
+		
+		xml.module(version: '2.0') {
+			meta {
+				ideentity {
+					def name = p.packageName.toLowerCase().replaceAll(' ', '_')
+					uri( "urn:user:created:package:$name" )
+					version( p.packageVersion )
+				}
+				
+				info {
+					name( p.packageName )
+					description( p.packageDescription )
+				}
+			}
+			
+			system()
+			
+			rootspace {
+				fileset {
+					regex('res:/(module\\.(xml|signature)|manifest.xml|modules/.*?|etc/system/.*?)')
+				}
+			}
+		}
+		
+		moduleFile.write('<?xml version="1.0" encoding="UTF-8"?>\n')
+		moduleFile.write(writer.toString().replaceAll('ideentity', 'identity'))
+	}
+	
+	void makePackageManifestFile(Project p, def tmpDir, def nonce) {
+		println "Making the manifest file"
+		def manifestFile = p.file(tmpDir + '/manifest.xml')
+
+		def writer = new StringWriter()
+		def xml = new MarkupBuilder(writer)
+		
+		def modules = []
+		
+		if(p.subprojects.size() == 0) {
+			modules << moduleHelper.getModuleInfo(p.file('module.xml'))
+		} else {
+			p.subprojects.each { s ->
+				modules << moduleHelper.getModuleInfo(s.file('module.xml'))
+			}
+		}
+		
+		xml.manifest() {
+			name(p.packageName)
+			description(p.packageDescription)
+			version(p.packageVersion)
+			
+			modules.each { m ->
+				def u = m.meta.identity.uri.text()
+				def v = m.meta.identity.version.text()
+			
+				module {
+					uri(u)
+					version(v)
+					runlevel(5)
+					def shapedURI = u.replaceAll(':', '.')
+					source("modules/$shapedURI-$v-${nonce}.jar")
+					expand(true)
+				}
+			}
+		}
+		
+		manifestFile.write('<?xml version="1.0" encoding="UTF-8"?>\n')
+		manifestFile.write(writer.toString())
+	}
 
 	void apply(Project project) { 
-		project.task('nkmodule', type: NKModuleBuilder)
-		project.task('nkgreeting', type: NKGreeting)
-
 		project.convention.plugins.netkernel = new NetKernelConvention(project)
+			
+		project.task('nkpackage', type: Zip, dependsOn: 'jar') {
+			def nonce
+			
+			into('modules') {
+				from "${project.buildDir}/modules"
+			}
+			
+			project.subprojects.each { s ->
+				into('modules') {
+					from "${s.buildDir}/modules"
+				}
+			}
+			
+			project.afterEvaluate {
+			
+				if(project.rootProject.equals(project)) {
+					println "After evaluating"
+					println project.packageName
+				
+					if(project.packageName == null) {
+						project.packageName = project.name
+						println "WARNING: packageName not set -- defaulting to ${project.packageName}"
+					}
+
+					if(project.packageVersion == null) {
+						project.packageVersion = "0.0.1"
+						println "WARNING: packageVersion not set -- defaulting to ${project.packageVersion}"					
+					}
+
+					def name = project.packageName.toLowerCase()
+					name = name.replaceAll(" ", "_") 
+
+					destinationDir=project.file("${project.buildDir}/packages")
+					archiveName="${name}-${project.packageVersion}.nkp.jar"
+					
+					nonce = System.currentTimeMillis()		
+
+					rename { String fileName ->
+						fileName.replace('.jar', "-${nonce}.jar")
+					}
+				}
+			}
+			
+			doFirst {
+				if(project.rootProject.equals(project)) {
+					println "Building: " + project.packageName		
+									
+					def tmpDirName = "${project.buildDir}/tmp/${nonce}"
+					def tmpDir = project.file(tmpDirName)
+					tmpDir.mkdirs()
+
+					makePackageModuleFile(project, tmpDirName, nonce)
+					makePackageManifestFile(project, tmpDirName, nonce)
+
+					from "${project.buildDir}/tmp/${nonce}/manifest.xml"
+					from "${project.buildDir}/tmp/${nonce}/module.xml"
+				}
+			}
+		}
+
 		project.getPlugins().apply(GroovyPlugin.class)
 
-		reconfigureProject(project)
+		if(project.subprojects.size() == 0) {
+			reconfigureProject(project)
+		}
 
 		println "Configuring Core Dependencies"
 		setUpDependencies(project, getLatestVersionOfCoreNetKernelFiles(project))	
@@ -83,6 +222,18 @@ class NetKernelPlugin implements Plugin<Project> {
 				delete(f)
 			}
 		}
+
+		println "********************************************"
+		if(project.file('module.xml').exists()) {		
+			println "GOT HERE"
+			project.tasks.jar.configure {
+				destinationDir=project.file("${project.buildDir}/modules")
+				archiveName=moduleHelper.getModuleArchiveName(project.file('module.xml'))
+				exclude '.gradle/**'
+				exclude 'build'
+				exclude 'build.gradle'
+			}			
+		}
   	}
 
 	/**
@@ -93,7 +244,6 @@ class NetKernelPlugin implements Plugin<Project> {
 	 **/
 	def getLatestVersionOfCoreNetKernelFiles(Project project) {
 
-		
 		def collection = []
 		
 		def allNKLibs = project.fileTree(dir: "${project.netKernelRootDir}/lib", 
@@ -108,46 +258,48 @@ class NetKernelPlugin implements Plugin<Project> {
 	
 	def getDependentModuleReferences(Project project) {
 		def collection = []
-		def installedModules = new File("${project.netKernelRootDir}/etc/modules.xml")
-		def allModules = new XmlSlurper().parse(installedModules).children().depthFirst().collect { it.text() }
-
-		def file = new File("${project.projectDir}/module.xml") // TODO: Project.file it
-		def module = new XmlSlurper().parse(file)
-		def thisModule = module.meta.identity.uri.text()
-		println "Investigating dependencies for $thisModule"
 		
-		// Get the set of all import statements from the module.xml
-		// and remove this current module and the core NetKernel
-		// libraries that we will pick up separately
+		if(project.file('module.xml').exists()) {
+			def installedModules = new File("${project.netKernelRootDir}/etc/modules.xml")
+			def allModules = new XmlSlurper().parse(installedModules).children().depthFirst().collect { it.text() }
+		
+			def module = moduleHelper.getModuleInfo(project.file('module.xml'))
+			def thisModule = module.meta.identity.uri.text()
+			println "Investigating dependencies for $thisModule"
+		
+			// Get the set of all import statements from the module.xml
+			// and remove this current module and the core NetKernel
+			// libraries that we will pick up separately
 
-		def importedModules = module.depthFirst().findAll 
-				{ it.name().equals("import") }.collect{ it.text() }
+			def importedModules = module.depthFirst().findAll 
+					{ it.name().equals("import") }.collect{ it.text() }
 				
-		// TODO: Strip out non-public and other useless imports
-		importedModules.remove(thisModule)
-		importedModules.remove(nklibs)
+			// TODO: Strip out non-public and other useless imports
+			importedModules.remove(thisModule)
+			importedModules.remove(nklibs)
 		
-		def size = importedModules.size() // TODO: Double-check you don't need this
+			def size = importedModules.size() // TODO: Double-check you don't need this
 		
-		importedModules.each { m ->
-			println "Checking $m"
-			def fileName = m.replaceAll(':', '.')
-			def allVersions = allModules.findAll { it =~ fileName }.sort() 
-			// TODO: Selecting the most recent one may not be the appropriate choice
+			importedModules.each { m ->
+				println "Checking $m"
+				def fileName = m.replaceAll(':', '.')
+				def allVersions = allModules.findAll { it =~ fileName }.sort() 
+				// TODO: Selecting the most recent one may not be the appropriate choice
 			
-			if(allVersions.size() > 0 ) {
-				def version = allVersions.last()
+				if(allVersions.size() > 0 ) {
+					def version = allVersions.last()
 			
-				println "Selecting version: $version"
+					println "Selecting version: $version"
 			
-				if(version.startsWith("modules/")) {
-					//version = "${project.netKernelRootDir}/$version"
-					//version = version.substring(8)
-				} else if(version.startsWith("file:/")) {
-					//version = version.substring(5)
+					if(version.startsWith("modules/")) {
+						//version = "${project.netKernelRootDir}/$version"
+						//version = version.substring(8)
+					} else if(version.startsWith("file:/")) {
+						//version = version.substring(5)
+					}
+			
+					addDependenciesForModule(project, m, version)
 				}
-			
-				addDependenciesForModule(project, m, version)
 			}
 		}
 		
@@ -205,6 +357,7 @@ class NetKernelPlugin implements Plugin<Project> {
 	}
 
 	void setUpRepositories(Project project, def repoDirs) {
+		println "**************************ADDING $project repositories: $repoDirs"
 		project.repositories {
 			flatDir(name: 'lib', dirs: repoDirs)
 		}
@@ -213,24 +366,25 @@ class NetKernelPlugin implements Plugin<Project> {
 	void setUpDependencies(Project project, def fileCollection) {
 		
 		def libDirDeps = buildDependencyMapFromList(fileCollection)
-		libDirDeps.each { lib, jarInfo -> //lib, ver ->
+		libDirDeps.each { lib, jarInfo -> 
 		
 			println "Checking $lib"
 			
 			if(jarInfo.classifier != null) {
-				println "Adding dependency on: ${jarInfo.base}-${jarInfo.version}-${jarInfo.classifier}"				
+				println "Adding dependency on: ${jarInfo.base}-${jarInfo.version}-${jarInfo.classifier} in ${project}"				
 				project.dependencies {
 					compile(name: jarInfo.base, version: jarInfo.version, classifier: jarInfo.classifier)
 				}
 			 }
 			 else {
 				if(jarInfo.version != null) {
-					println "Adding dependency on: ${jarInfo.base}-${jarInfo.version}"
+					println "Adding dependency on: ${jarInfo.base}-${jarInfo.version} in ${project}"
 					project.dependencies {
 					  compile(name: jarInfo.base, version: jarInfo.version )
 					}
+					
 				} else {
-				    println "Adding dependency on: ${jarInfo.base}"							
+				    println "Adding dependency on: ${jarInfo.base} in ${project}"							
 				    project.dependencies {
 					    compile(name: jarInfo.base)
 				    }

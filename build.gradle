@@ -14,6 +14,6 @@ dependencies {
     compile gradleApi()
 	// TODO: Investigate if we can use the Groovy that comes w/ NetKernel to avoid
 	// version problems.
+    groovy localGroovy()	
   	testCompile 'junit:junit:4.7'
-    groovy localGroovy()
 }

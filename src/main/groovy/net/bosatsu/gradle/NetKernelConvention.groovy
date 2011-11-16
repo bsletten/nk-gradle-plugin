@@ -30,7 +30,34 @@ class NetKernelConvention {
 	
 	NetKernelConvention(Project p) {
 		this.p = p
-		netKernelRootDir = p.file(System.properties.netkernelroot)
+		
+		def overridden = false
+		def location
+		
+		if(p.hasProperty('netkernelroot')) {
+			location = p.netkernelroot
+		}
+		
+		if(System.properties.netkernelroot) {
+			overridden = netKernelRootDir != null
+			location = System.properties.netkernelroot
+		}
+		
+		if(location != null) {
+			netKernelRootDir = p.file(location)
+
+			if(netKernelRootDir.exists()) {
+				if(overridden) {
+					println "Overriding NetKernel installation to: ${location}"
+				} else {
+					println "Found a NetKernel installation at: ${location}"				
+				}
+			
+			} else {
+				println "NetKernel Gradle plugin currently requires you to specify a NetKernel installation directory."
+				println 'Please put a gradle.properties file in user.home/.gradle or use: gradle -Dnetkernelhome=<installation>'
+			}
+		}
 	}
 	
 	def dependsOnNetkernelModule(String moduleName) {

@@ -310,10 +310,14 @@ class NetKernelPlugin implements Plugin<Project> {
 					def parentDir = project.file("${project.projectDir}").getParentFile()
 					def added = false
 					
-					if(!peerProjectExists(project, fileName)) {
+					def peerProject = getPeerProject(project, fileName)
+					
+					if(peerProject == null) {
 						unresolvedDependencies << fileName
 					} else {
 						println "Skipping peer project: ${fileName}"
+						def cp = project.sourceSets.main.getCompileClasspath()
+						project.sourceSets.main.setCompileClasspath(cp.plus(project.files(peerProject)))
 					}
 				}
 			}
@@ -322,16 +326,16 @@ class NetKernelPlugin implements Plugin<Project> {
 		collection
 	}
 	
-	boolean peerProjectExists(Project project, String name) {
-		def retValue = false
+	def getPeerProject(Project project, String name) {
+		def retValue = null
 		def parentDir = project.file("${project.projectDir}").getParentFile().getAbsolutePath()
 		
-		retValue = project.file("${parentDir}/${name}").exists()
+		retValue = project.file("${parentDir}/${name}")
 		
-		if(!retValue && name.startsWith("urn.")) {
+		if(!retValue.exists() && name.startsWith("urn.")) {
 			name = name.substring(4)
 			
-			retValue = project.file("${parentDir}/${name}").exists()
+			retValue = project.file("${parentDir}/${name}")
 		}
 		
 		retValue

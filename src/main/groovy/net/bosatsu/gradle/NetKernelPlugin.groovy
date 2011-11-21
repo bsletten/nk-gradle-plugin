@@ -38,6 +38,8 @@ class NetKernelPlugin implements Plugin<Project> {
     	'urn.com.ten60.core.netkernel.impl'
 	]
 	
+	def unresolvedDependencies = []
+	
 	void makePackageModuleFile(Project p, def tmpDir, def nonce) {
 		println "Making the module file"
 		def moduleFile = p.file(tmpDir + '/module.xml')
@@ -132,9 +134,6 @@ class NetKernelPlugin implements Plugin<Project> {
 			project.afterEvaluate {
 			
 				if(project.rootProject.equals(project)) {
-					println "After evaluating"
-					println project.packageName
-				
 					if(project.packageName == null) {
 						project.packageName = project.name
 						println "WARNING: packageName not set -- defaulting to ${project.packageName}"
@@ -156,6 +155,11 @@ class NetKernelPlugin implements Plugin<Project> {
 					rename { String fileName ->
 						fileName.replace('.jar', "-${nonce}.jar")
 					}
+				}
+				
+				unresolvedDependencies.each { d ->
+					println "Checking related project $d"
+					addIfRelatedProjectDependency(project, d)
 				}
 			}
 			
@@ -223,9 +227,7 @@ class NetKernelPlugin implements Plugin<Project> {
 			}
 		}
 
-		println "********************************************"
 		if(project.file('module.xml').exists()) {		
-			println "GOT HERE"
 			project.tasks.jar.configure {
 				destinationDir=project.file("${project.buildDir}/modules")
 				archiveName=moduleHelper.getModuleArchiveName(project.file('module.xml'))
@@ -271,21 +273,22 @@ class NetKernelPlugin implements Plugin<Project> {
 			// and remove this current module and the core NetKernel
 			// libraries that we will pick up separately
 
-			def importedModules = module.depthFirst().findAll 
-					{ it.name().equals("import") }.collect{ it.text() }
+			def importedModules = module.depthFirst().findAll { 
+				it.name().equals("import") 
+			}.collect{ it.text() }.unique()
 				
 			// TODO: Strip out non-public and other useless imports
 			importedModules.remove(thisModule)
 			importedModules.remove(nklibs)
 		
 			def size = importedModules.size() // TODO: Double-check you don't need this
-		
+			
 			importedModules.each { m ->
 				println "Checking $m"
 				def fileName = m.replaceAll(':', '.')
 				def allVersions = allModules.findAll { it =~ fileName }.sort() 
 				// TODO: Selecting the most recent one may not be the appropriate choice
-			
+				
 				if(allVersions.size() > 0 ) {
 					def version = allVersions.last()
 			
@@ -299,11 +302,39 @@ class NetKernelPlugin implements Plugin<Project> {
 					}
 			
 					addDependenciesForModule(project, m, version)
+				} else {
+					// This could be a module from a related Project not yet
+					// deployed into NetKernel. We still would like a build
+					// to work, so we'll try to reach into that project.
+					
+					def parentDir = project.file("${project.projectDir}").getParentFile()
+					def added = false
+					
+					if(!peerProjectExists(project, fileName)) {
+						unresolvedDependencies << fileName
+					} else {
+						println "Skipping peer project: ${fileName}"
+					}
 				}
 			}
 		}
 		
 		collection
+	}
+	
+	boolean peerProjectExists(Project project, String name) {
+		def retValue = false
+		def parentDir = project.file("${project.projectDir}").getParentFile().getAbsolutePath()
+		
+		retValue = project.file("${parentDir}/${name}").exists()
+		
+		if(!retValue && name.startsWith("urn.")) {
+			name = name.substring(4)
+			
+			retValue = project.file("${parentDir}/${name}").exists()
+		}
+		
+		retValue
 	}
 	
 	void addDependenciesForModule(Project project, String moduleURI, String moduleLocation) {
@@ -315,7 +346,9 @@ class NetKernelPlugin implements Plugin<Project> {
 				moduleLocation = "${project.netKernelRootDir}/$moduleLocation"
 			}
 			
-			project.repositories {
+			println "ADDING DEPENDENCY: $moduleURI($moduleLocation) to $project"
+			
+			project.repositories { 
 				flatDir(name: moduleURI, dirs: [ moduleLocation ])
 			}
 			
@@ -355,11 +388,72 @@ class NetKernelPlugin implements Plugin<Project> {
 			setUpDependencies(project, expandedLibs)
 		}
 	}
+	
+	void addIfRelatedProjectDependency(Project project, String module) {
+		def found = false
+
+		println "Checking to see if ${module} is in a related Project"
+		
+		project.relatedProjects.each { p->
+			def base = findBaseOfProject(project, p)
+			
+			if(base != null) {
+				def f = project.file("${base.getAbsolutePath()}/modules/${module}")
+			
+				if(f.exists()) {
+					found = true
+				} else {
+					if(module.startsWith('urn.')) {
+						module = module.substring(4)
+					
+						f = project.file("${base.getAbsolutePath()}/modules/${module}")
+					
+						if(f.exists()) {
+							found = true
+						}
+					}
+				}
+			
+				if(found) {
+					def cp = project.sourceSets.main.getCompileClasspath()
+					project.sourceSets.main.setCompileClasspath(cp.plus(project.files(f)))
+				}
+			}
+		}
+	}
+	
+	File findBaseOfProject(Project project, String relatedProject) {
+		def retValue
+		
+		// This is just a temporary hack as it assumes a certain structure.
+		// TODO: Add support for file://, relative, etc. relatedPaths
+		
+		println "Looking for $relatedProject in $project"
+		
+		def base = project.file("${project.projectDir}").getParentFile()
+		def done = false
+		
+		while(retValue == null && !done) {
+			def f = project.file("${base}/${relatedProject}")
+			
+			if(f.exists()) {
+				retValue = f
+			} else {
+				base = base.getParentFile()
+				done = (base == null)
+			}
+		}
+
+		retValue
+	}
 
 	void setUpRepositories(Project project, def repoDirs) {
-		println "**************************ADDING $project repositories: $repoDirs"
+		setUpRepositories(project, 'lib', repoDirs)
+	}
+	
+	void setUpRepositories(Project project, String name, def repoDirs) {
 		project.repositories {
-			flatDir(name: 'lib', dirs: repoDirs)
+			flatDir(name: name, dirs: repoDirs)
 		}
 	}
 
@@ -368,23 +462,23 @@ class NetKernelPlugin implements Plugin<Project> {
 		def libDirDeps = buildDependencyMapFromList(fileCollection)
 		libDirDeps.each { lib, jarInfo -> 
 		
-			println "Checking $lib"
+//			println "Checking $lib"
 			
 			if(jarInfo.classifier != null) {
-				println "Adding dependency on: ${jarInfo.base}-${jarInfo.version}-${jarInfo.classifier} in ${project}"				
+//				println "Adding dependency on: ${jarInfo.base}-${jarInfo.version}-${jarInfo.classifier} in ${project}"				
 				project.dependencies {
 					compile(name: jarInfo.base, version: jarInfo.version, classifier: jarInfo.classifier)
 				}
 			 }
 			 else {
 				if(jarInfo.version != null) {
-					println "Adding dependency on: ${jarInfo.base}-${jarInfo.version} in ${project}"
+//					println "Adding dependency on: ${jarInfo.base}-${jarInfo.version} in ${project}"
 					project.dependencies {
 					  compile(name: jarInfo.base, version: jarInfo.version )
 					}
 					
 				} else {
-				    println "Adding dependency on: ${jarInfo.base} in ${project}"							
+//				    println "Adding dependency on: ${jarInfo.base} in ${project}"							
 				    project.dependencies {
 					    compile(name: jarInfo.base)
 				    }

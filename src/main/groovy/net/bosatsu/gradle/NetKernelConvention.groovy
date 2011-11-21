@@ -23,6 +23,7 @@ class NetKernelConvention {
 	Project p
 
 	def modules
+	def relatedProjects = []
 
 	String packageName
 	String packageDescription

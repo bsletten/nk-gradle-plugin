@@ -272,10 +272,10 @@ class NetKernelPlugin implements Plugin<Project> {
 			// Get the set of all import statements from the module.xml
 			// and remove this current module and the core NetKernel
 			// libraries that we will pick up separately
-
+			
 			def importedModules = module.depthFirst().findAll { 
 				it.name().equals("import") 
-			}.collect{ it.text() }.unique()
+			}.collect{ it.uri.text() }.unique()
 				
 			// TODO: Strip out non-public and other useless imports
 			importedModules.remove(thisModule)

@@ -315,9 +315,9 @@ class NetKernelPlugin implements Plugin<Project> {
 					if(peerProject == null) {
 						unresolvedDependencies << fileName
 					} else {
-						println "Skipping peer project: ${fileName}"
-						def cp = project.sourceSets.main.getCompileClasspath()
-						project.sourceSets.main.setCompileClasspath(cp.plus(project.files(peerProject)))
+						project.sourceSets.main {
+							compileClasspath += project.files(peerProject)
+						}
 					}
 				}
 			}
@@ -354,6 +354,10 @@ class NetKernelPlugin implements Plugin<Project> {
 			
 			project.repositories { 
 				flatDir(name: moduleURI, dirs: [ moduleLocation ])
+			}
+			
+			project.sourceSets.main {
+				compileClasspath += project.files(moduleLocation)
 			}
 			
 			def file = new File("${moduleLocation}/module.xml")
@@ -419,8 +423,18 @@ class NetKernelPlugin implements Plugin<Project> {
 				}
 			
 				if(found) {
+					/*def cp = project.sourceSets.main.getCompileClasspath()
+					project.sourceSets.main.setCompileClasspath(cp.plus(project.files(f))) */
+					
 					def cp = project.sourceSets.main.getCompileClasspath()
-					project.sourceSets.main.setCompileClasspath(cp.plus(project.files(f)))
+					println "*B: $cp + ${cp.getClass().getName()}"
+										
+					project.sourceSets.main {
+						compileClasspath += project.files(f)
+					}
+					
+					cp = project.sourceSets.main.getCompileClasspath()
+					println "*A: $cp + ${cp.getClass().getName()}"
 				}
 			}
 		}

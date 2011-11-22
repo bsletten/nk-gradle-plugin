@@ -156,6 +156,7 @@ class NetKernelPlugin implements Plugin<Project> {
 						fileName.replace('.jar', "-${nonce}.jar")
 					}
 				}
+				println "CHECKING UNRESOLVED: $unresolvedDependencies"
 				
 				unresolvedDependencies.each { d ->
 					println "Checking related project $d"
@@ -338,6 +339,10 @@ class NetKernelPlugin implements Plugin<Project> {
 			retValue = project.file("${parentDir}/${name}")
 		}
 		
+		if(!retValue.exists()) {
+			retValue = null
+		}
+		
 		retValue
 	}
 	
@@ -423,18 +428,9 @@ class NetKernelPlugin implements Plugin<Project> {
 				}
 			
 				if(found) {
-					/*def cp = project.sourceSets.main.getCompileClasspath()
-					project.sourceSets.main.setCompileClasspath(cp.plus(project.files(f))) */
-					
-					def cp = project.sourceSets.main.getCompileClasspath()
-					println "*B: $cp + ${cp.getClass().getName()}"
-										
 					project.sourceSets.main {
 						compileClasspath += project.files(f)
 					}
-					
-					cp = project.sourceSets.main.getCompileClasspath()
-					println "*A: $cp + ${cp.getClass().getName()}"
 				}
 			}
 		}

@@ -97,9 +97,9 @@ class NetKernelPlugin implements Plugin<Project> {
 				project.tasks."$packageTaskName".dependsOn moduleTaskName
 			}
 		
-			project.tasks.add('nkpackage2')
+			project.tasks.add('nkpackage')
 		
-			project.tasks.nkpackage2.dependsOn {
+			project.tasks.nkpackage.dependsOn {
 				project.tasks.findAll { task -> task.name.startsWith('nkpackage-')}
 			}
 		

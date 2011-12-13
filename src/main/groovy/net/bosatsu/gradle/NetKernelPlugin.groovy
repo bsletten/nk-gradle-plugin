@@ -16,8 +16,6 @@
 
 package net.bosatsu.gradle
 
-import groovy.xml.MarkupBuilder
-
 import org.gradle.api.Project
 import org.gradle.api.Plugin
 import org.gradle.api.plugins.GroovyPlugin
@@ -25,6 +23,10 @@ import org.gradle.api.tasks.bundling.Zip
 
 import net.bosatsu.util.JarInfoHelper
 import net.bosatsu.util.JarInfo
+
+import net.bosatsu.gradle.tasks.NetKernelPackage
+import net.bosatsu.gradle.tasks.NetKernelPackageManifestFile
+import net.bosatsu.gradle.tasks.NetKernelPackageModuleFile
 
 class NetKernelPlugin implements Plugin<Project> { 
 
@@ -39,149 +41,76 @@ class NetKernelPlugin implements Plugin<Project> {
 	]
 	
 	def unresolvedDependencies = []
-	
-	void makePackageModuleFile(Project p, def tmpDir, def nonce) {
-		println "Making the module file"
-		def moduleFile = p.file(tmpDir + '/module.xml')
-		
-		def writer = new StringWriter()
-		def xml = new MarkupBuilder(writer)
-		
-		xml.module(version: '2.0') {
-			meta {
-				ideentity {
-					def name = p.packageName.toLowerCase().replaceAll(' ', '_')
-					uri( "urn:user:created:package:$name" )
-					version( p.packageVersion )
-				}
-				
-				info {
-					name( p.packageName )
-					description( p.packageDescription )
-				}
-			}
-			
-			system()
-			
-			rootspace {
-				fileset {
-					regex('res:/(module\\.(xml|signature)|manifest.xml|modules/.*?|etc/system/.*?)')
-				}
-			}
-		}
-		
-		moduleFile.write('<?xml version="1.0" encoding="UTF-8"?>\n')
-		moduleFile.write(writer.toString().replaceAll('ideentity', 'identity'))
-	}
-	
-	void makePackageManifestFile(Project p, def tmpDir, def nonce) {
-		println "Making the manifest file"
-		def manifestFile = p.file(tmpDir + '/manifest.xml')
-
-		def writer = new StringWriter()
-		def xml = new MarkupBuilder(writer)
-		
-		def modules = []
-		
-		if(p.subprojects.size() == 0) {
-			modules << moduleHelper.getModuleInfo(p.file('module.xml'))
-		} else {
-			p.subprojects.each { s ->
-				modules << moduleHelper.getModuleInfo(s.file('module.xml'))
-			}
-		}
-		
-		xml.manifest() {
-			name(p.packageName)
-			description(p.packageDescription)
-			version(p.packageVersion)
-			
-			modules.each { m ->
-				def u = m.meta.identity.uri.text()
-				def v = m.meta.identity.version.text()
-			
-				module {
-					uri(u)
-					version(v)
-					runlevel(5)
-					def shapedURI = u.replaceAll(':', '.')
-					source("modules/$shapedURI-$v-${nonce}.jar")
-					expand(true)
-				}
-			}
-		}
-		
-		manifestFile.write('<?xml version="1.0" encoding="UTF-8"?>\n')
-		manifestFile.write(writer.toString())
-	}
 
 	void apply(Project project) { 
+		project.getPlugins().apply(GroovyPlugin.class)
 		project.convention.plugins.netkernel = new NetKernelConvention(project)
-			
-		project.task('nkpackage', type: Zip, dependsOn: 'jar') {
-			def nonce
-			
-			into('modules') {
-				from "${project.buildDir}/modules"
-			}
-			
-			project.subprojects.each { s ->
-				into('modules') {
-					from "${s.buildDir}/modules"
-				}
-			}
-			
-			project.afterEvaluate {
-			
-				if(project.rootProject.equals(project)) {
-					if(project.packageName == null) {
-						project.packageName = project.name
-						println "WARNING: packageName not set -- defaulting to ${project.packageName}"
-					}
-
-					if(project.packageVersion == null) {
-						project.packageVersion = "0.0.1"
-						println "WARNING: packageVersion not set -- defaulting to ${project.packageVersion}"					
-					}
-
-					def name = project.packageName.toLowerCase()
-					name = name.replaceAll(" ", "_") 
-
-					destinationDir=project.file("${project.buildDir}/packages")
-					archiveName="${name}-${project.packageVersion}.nkp.jar"
-					
-					nonce = System.currentTimeMillis()		
-
-					rename { String fileName ->
-						fileName.replace('.jar', "-${nonce}.jar")
-					}
-				}
-				println "CHECKING UNRESOLVED: $unresolvedDependencies"
+		
+		project.afterEvaluate {
+			project.packages.each { p->
+				def name = p['name']
 				
-				unresolvedDependencies.each { d ->
-					println "Checking related project $d"
-					addIfRelatedProjectDependency(project, d)
+				def packageTaskName = "nkpackage-$name"
+				
+				def manifestTaskName = "$packageTaskName-manifest"
+				def moduleTaskName = "$packageTaskName-module"				
+				
+				project.tasks.add(name: manifestTaskName, type: NetKernelPackageManifestFile) 
+				{
+					packageName = name
+					packageDescription = p['description']
+					packageVersion = p['version']
+					
+					// If something other than every module has been
+					// specified, pass on just the modules that we
+					// want included in this package
+				
+					if(p['modules'] != null) {
+						packageModules = p['modules']
+					}
 				}
+				
+				project.tasks.add(name: moduleTaskName,	type: NetKernelPackageModuleFile) 
+				{
+					packageName = name
+					packageDescription = p['description']
+					packageVersion = p['version']
+				}
+				
+				project.tasks.add(name: packageTaskName, type: NetKernelPackage) {
+					packageName = name
+					packageDescription = p['description']
+					packageVersion = p['version']
+				
+					// If something other than every module has been
+					// specified, pass on just the modules that we
+					// want included in this package
+				
+					if(p['modules'] != null) {
+						modules = p['modules']
+					}
+				
+					initialize()
+				}
+					
+				project.tasks."$packageTaskName".dependsOn manifestTaskName
+				project.tasks."$packageTaskName".dependsOn moduleTaskName
 			}
-			
-			doFirst {
-				if(project.rootProject.equals(project)) {
-					println "Building: " + project.packageName		
-									
-					def tmpDirName = "${project.buildDir}/tmp/${nonce}"
-					def tmpDir = project.file(tmpDirName)
-					tmpDir.mkdirs()
-
-					makePackageModuleFile(project, tmpDirName, nonce)
-					makePackageManifestFile(project, tmpDirName, nonce)
-
-					from "${project.buildDir}/tmp/${nonce}/manifest.xml"
-					from "${project.buildDir}/tmp/${nonce}/module.xml"
-				}
+		
+			project.tasks.add('nkpackage2')
+		
+			project.tasks.nkpackage2.dependsOn {
+				project.tasks.findAll { task -> task.name.startsWith('nkpackage-')}
+			}
+		
+		}
+		
+		project.afterEvaluate {
+			unresolvedDependencies.each { d ->
+				println "Checking related project $d"
+				addIfRelatedProjectDependency(project, d)
 			}
 		}
-
-		project.getPlugins().apply(GroovyPlugin.class)
 
 		if(project.subprojects.size() == 0) {
 			reconfigureProject(project)
@@ -228,7 +157,7 @@ class NetKernelPlugin implements Plugin<Project> {
 			}
 		}
 
-		if(project.file('module.xml').exists()) {		
+		if(project.file('module.xml').exists()) {
 			project.tasks.jar.configure {
 				destinationDir=project.file("${project.buildDir}/modules")
 				archiveName=moduleHelper.getModuleArchiveName(project.file('module.xml'))
@@ -348,14 +277,17 @@ class NetKernelPlugin implements Plugin<Project> {
 	
 	void addDependenciesForModule(Project project, String moduleURI, String moduleLocation) {
 		
-		// TODO: Ignore .sjars
+		if(moduleLocation.endsWith(".sjar")) {
+			println "Ignoring secure jar: $moduleURI"
+			return
+		}
 		
 		if(!moduleLocation.endsWith(".jar")) {
 			if(moduleLocation.startsWith("modules/")) {
 				moduleLocation = "${project.netKernelRootDir}/$moduleLocation"
 			}
 			
-			println "ADDING DEPENDENCY: $moduleURI($moduleLocation) to $project"
+			println "Adding Dependency: $moduleURI($moduleLocation) to $project"
 			
 			project.repositories { 
 				flatDir(name: moduleURI, dirs: [ moduleLocation ])

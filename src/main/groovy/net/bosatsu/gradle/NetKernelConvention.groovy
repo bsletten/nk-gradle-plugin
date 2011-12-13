@@ -21,13 +21,13 @@ import org.gradle.api.Project
 class NetKernelConvention {
 	File netKernelRootDir
 	Project p
+	
+	static String LOCAL_INSTALLATION_URL = "http://localhost:1060/tools/scriptplaypen?action2=execute&type=gy&example&identifier&name&space&script=context.createResponseFrom%28context.source%28%22netkernel:/config/netkernel.install.path%22%29%29"
 
 	def modules
 	def relatedProjects = []
 
-	String packageName
-	String packageDescription
-	String packageVersion
+	def packages = []
 	
 	NetKernelConvention(Project p) {
 		this.p = p
@@ -37,6 +37,11 @@ class NetKernelConvention {
 		
 		if(p.hasProperty('netkernelroot')) {
 			location = p.netkernelroot
+		}
+		
+		if(location == null) {
+			location = checkForRunningSystem(p)
+			// TODO: Write out to .gradle/gradle.properties?
 		}
 		
 		if(System.properties.netkernelroot) {
@@ -61,6 +66,31 @@ class NetKernelConvention {
 		}
 	}
 	
+	def checkForRunningSystem(Project p) {
+		def retValue = null
+		
+		try {
+		   def u = new URL(LOCAL_INSTALLATION_URL)
+		   def installation = u.getText()
+		
+		   if(p.file(installation).exists()) {
+			  if(installation.startsWith("file:")) {
+				installation = installation.substring(4)
+			  }
+		      println "Discovered NetKernel installation: $installation"
+		      retValue = installation
+		   } else {
+		  	  println "Ignoring non-existent installation: $installation"
+		   }
+
+		} catch(Throwable t) {
+			//t.printStackTrace()
+			println t.getMessage()
+		}
+		
+		retValue
+	}
+	
 	def dependsOnNetkernelModule(String moduleName) {
 		Project otherProject = p.project(moduleName)
 
@@ -76,5 +106,13 @@ class NetKernelConvention {
 	def nkconfig(Closure closure) {
 		closure.delegate = this
 		closure()
+	}
+	
+	def definePackage(Map map) {
+		if(map['name'] != null && map['description'] != null && map['version'] != null) {
+			packages << map		
+		} else {
+			println "WARNING: Specified package: $map must include 'name', 'description' and 'version' attributes."
+		}
 	}
 }

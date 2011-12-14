@@ -25,6 +25,7 @@ class NetKernelPackage extends Zip {
 	def packageVersion
 	def packageDescription
 	def modules
+	def nonce
 	
 	NetKernelPackage() {
 	}
@@ -56,7 +57,7 @@ class NetKernelPackage extends Zip {
 
 		archiveName="${name}-${packageVersion}.nkp.jar"
 		
-		def nonce = System.currentTimeMillis()
+		nonce = System.currentTimeMillis()
 	
 		rename { String fileName ->
 			fileName.replace('.jar', "-${nonce}.jar")

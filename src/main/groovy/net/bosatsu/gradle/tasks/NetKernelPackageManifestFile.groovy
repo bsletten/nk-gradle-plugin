@@ -26,6 +26,7 @@ class NetKernelPackageManifestFile extends DefaultTask {
 	
 	def moduleHelper = new NKModuleHelper()
 	
+	def nonceTaskName
 	def packageName
 	def packageVersion
 	def packageDescription
@@ -59,7 +60,7 @@ class NetKernelPackageManifestFile extends DefaultTask {
 			}
 		}
 		
-		def nonce = System.currentTimeMillis()
+		def nonce = project.tasks."$nonceTaskName".nonce
 	
 		xml.manifest() {
 			name(packageName)

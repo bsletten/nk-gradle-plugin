@@ -57,6 +57,7 @@ class NetKernelPlugin implements Plugin<Project> {
 				
 				project.tasks.add(name: manifestTaskName, type: NetKernelPackageManifestFile) 
 				{
+					nonceTaskName = packageTaskName
 					packageName = name
 					packageDescription = p['description']
 					packageVersion = p['version']

@@ -30,7 +30,6 @@ import net.bosatsu.gradle.tasks.NetKernelPackage
 import net.bosatsu.gradle.tasks.NetKernelPackageManifestFile
 import net.bosatsu.gradle.tasks.NetKernelPackageModuleFile
 import net.bosatsu.gradle.tasks.NetKernelPublishPackage
-import net.bosatsu.gradle.tasks.NetKernelCreateRepository
 
 class NetKernelPlugin implements Plugin<Project> { 
 

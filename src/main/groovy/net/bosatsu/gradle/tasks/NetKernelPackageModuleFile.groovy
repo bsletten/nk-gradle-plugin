@@ -20,53 +20,53 @@ import org.gradle.api.DefaultTask
 import groovy.xml.MarkupBuilder
 
 class NetKernelPackageModuleFile extends DefaultTask {
-	def File moduleFile
+    def File moduleFile
 
-	def packageName
-	def packageVersion
-	def packageDescription
-	
-	NetKernelPackageModuleFile() {
-		moduleFile = project.file("${project.buildDir}/tmp/${name}/module.xml")	
-	}
-	
-	@org.gradle.api.tasks.TaskAction
-	def writeFile() {
-		def tmpDir = project.file("${project.buildDir}/tmp/${name}")
-		tmpDir.mkdirs()
-		
-		def writer = new StringWriter()
-		def xml = new MarkupBuilder(writer)
-		
-		xml.module(version: '2.0') {
-			meta {
-				// This is not a typo. We need to avoid calling the
-				// identity method. There is probably a better way to
-				// do this but for now we emit a different name and then
-				// string replace it.
-				
-				ideentity {
-					def name = packageName.toLowerCase().replaceAll(' ', '_')
-					uri( "urn:user:created:package:$name" )
-					version( packageVersion )
-				}
-				
-				info {
-					name( packageName )
-					description( packageDescription )
-				}
-			}
-			
-			system()
-			
-			rootspace {
-				fileset {
-					regex('res:/(module\\.(xml|signature)|manifest.xml|modules/.*?|etc/system/.*?)')
-				}
-			}
-		}
-		
-		moduleFile.write('<?xml version="1.0" encoding="UTF-8"?>\n')
-		moduleFile.write(writer.toString().replaceAll('ideentity', 'identity'))
-	}
+    def packageName
+    def packageVersion
+    def packageDescription
+    
+    NetKernelPackageModuleFile() {
+        moduleFile = project.file("${project.buildDir}/tmp/${name}/module.xml") 
+    }
+    
+    @org.gradle.api.tasks.TaskAction
+    def writeFile() {
+        def tmpDir = project.file("${project.buildDir}/tmp/${name}")
+        tmpDir.mkdirs()
+        
+        def writer = new StringWriter()
+        def xml = new MarkupBuilder(writer)
+        
+        xml.module(version: '2.0') {
+            meta {
+                // This is not a typo. We need to avoid calling the
+                // identity method. There is probably a better way to
+                // do this but for now we emit a different name and then
+                // string replace it.
+                
+                ideentity {
+                    def name = packageName.toLowerCase().replaceAll(' ', '_')
+                    uri( "urn:user:created:package:$name" )
+                    version( packageVersion )
+                }
+                
+                info {
+                    name( packageName )
+                    description( packageDescription )
+                }
+            }
+            
+            system()
+            
+            rootspace {
+                fileset {
+                    regex('res:/(module\\.(xml|signature)|manifest.xml|modules/.*?|etc/system/.*?)')
+                }
+            }
+        }
+        
+        moduleFile.write('<?xml version="1.0" encoding="UTF-8"?>\n')
+        moduleFile.write(writer.toString().replaceAll('ideentity', 'identity'))
+    }
 }

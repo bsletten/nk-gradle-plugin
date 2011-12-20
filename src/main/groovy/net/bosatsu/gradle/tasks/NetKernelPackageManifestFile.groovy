@@ -19,12 +19,12 @@ package net.bosatsu.gradle.tasks
 import org.gradle.api.DefaultTask
 import groovy.xml.MarkupBuilder
 
-import net.bosatsu.gradle.NKModuleHelper
+import net.bosatsu.util.netkernel.ModuleHelper
 
 class NetKernelPackageManifestFile extends DefaultTask {
 	def File manifestFile
 	
-	def moduleHelper = new NKModuleHelper()
+	def moduleHelper = new ModuleHelper()
 	
 	def nonceTaskName
 	def packageName
@@ -82,7 +82,7 @@ class NetKernelPackageManifestFile extends DefaultTask {
 			}
 		}
 	
-		manifestFile.write('<?xml version="1.0" encoding="UTF-8"?>\n')
-		manifestFile.write(writer.toString())
+        manifestFile.write('<?xml version="1.0" encoding="UTF-8"?>\n')
+        manifestFile.write(writer.toString())
 	}
 }

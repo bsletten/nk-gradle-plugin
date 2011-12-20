@@ -20,50 +20,50 @@ import org.gradle.api.Project
 import org.gradle.api.tasks.bundling.Zip
 
 class NetKernelPackage extends Zip {
-	
-	def packageName
-	def packageVersion
-	def packageDescription
-	def modules
-	def nonce
-	
-	NetKernelPackage() {
-	}
-	
-	void initialize() {
-		if(modules == null) {
-			into('modules') {
-				from "${project.buildDir}/modules"
-			}
-			
-			project.subprojects.each { s->
-				into('modules') {
-					from "${s.buildDir}/modules"
-				}
-			}
-			
-		} else {
-			modules.each { m ->
-				into('modules') {
-					from "${m}/build/modules"
-				}
-			}
-		}
-		
-		destinationDir=project.file("${project.buildDir}/packages")	
+    
+    def packageName
+    def packageVersion
+    def packageDescription
+    def modules
+    def nonce
+    
+    NetKernelPackage() {
+    }
+    
+    void initialize() {
+        if(modules == null) {
+            into('modules') {
+                from "${project.buildDir}/modules"
+            }
+            
+            project.subprojects.each { s->
+                into('modules') {
+                    from "${s.buildDir}/modules"
+                }
+            }
+            
+        } else {
+            modules.each { m ->
+                into('modules') {
+                    from "${m}/build/modules"
+                }
+            }
+        }
+        
+        destinationDir=project.file("${project.buildDir}/packages") 
 
-		def name = packageName.toLowerCase()
-		name = name.replaceAll(" ", "_") 
+        def name = packageName.toLowerCase()
+        name = name.replaceAll(" ", "_") 
 
-		archiveName="${name}-${packageVersion}.nkp.jar"
-		
-		nonce = System.currentTimeMillis()
-	
-		rename { String fileName ->
-			fileName.replace('.jar', "-${nonce}.jar")
-		}
-		
-		from project.tasks."nkpackage-${name}-manifest".manifestFile
-		from project.tasks."nkpackage-${name}-module".moduleFile
-	}
+        archiveName="${name}-${packageVersion}.nkp.jar"
+        
+        nonce = System.currentTimeMillis()
+    
+        rename { String fileName ->
+            fileName.replace('.jar', "-${nonce}.jar")
+        }
+        
+        from project.tasks."nkpackage-${name}-manifest".manifestFile
+        from project.tasks."nkpackage-${name}-module".moduleFile
+    }
 }

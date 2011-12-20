@@ -17,10 +17,18 @@
 package net.bosatsu.gradle
 
 import org.gradle.api.Project
+import net.bosatsu.util.netkernel.RepoHelper
 
 class NetKernelConvention {
 	File netKernelRootDir
+	File netKernelRepoDir
+	File netKernelRepoKeyStore
+	String netKernelKeyStoreUser
+	String netKernelKeyStorePassword
+	
 	Project p
+	
+	RepoHelper repoHelper
 	
 	static String LOCAL_INSTALLATION_URL = "http://localhost:1060/tools/scriptplaypen?action2=execute&type=gy&example&identifier&name&space&script=context.createResponseFrom%28context.source%28%22netkernel:/config/netkernel.install.path%22%29%29"
 
@@ -34,6 +42,7 @@ class NetKernelConvention {
 		
 		def overridden = false
 		def location
+		def repoLocation
 		
 		if(p.hasProperty('netkernelroot')) {
 			location = p.netkernelroot
@@ -63,6 +72,20 @@ class NetKernelConvention {
 				println "NetKernel Gradle plugin currently requires you to specify a NetKernel installation directory."
 				println 'Please put a gradle.properties file in user.home/.gradle or use: gradle -Dnetkernelhome=<installation>'
 			}
+		}
+		
+		if(p.hasProperty('netkernelrepo')) {
+			repoLocation = p.netkernelrepo
+		}
+		
+		if(repoLocation != null) {
+			netKernelRepoDir = p.file(repoLocation)
+		}
+		
+		repoHelper = new RepoHelper(netKernelRepoDir)
+		
+		if(p.hasProperty('netkernelrepokeystore')) {
+			netKernelRepoKeyStore = p.file(p.netkernelrepokeystore)
 		}
 	}
 	

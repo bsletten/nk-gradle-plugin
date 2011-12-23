@@ -30,6 +30,7 @@ import net.bosatsu.gradle.tasks.NetKernelPackage
 import net.bosatsu.gradle.tasks.NetKernelPackageManifestFile
 import net.bosatsu.gradle.tasks.NetKernelPackageModuleFile
 import net.bosatsu.gradle.tasks.NetKernelPublishPackage
+import net.bosatsu.gradle.tasks.NetKernelVerifyRepository
 
 class NetKernelPlugin implements Plugin<Project> { 
 
@@ -118,6 +119,10 @@ class NetKernelPlugin implements Plugin<Project> {
             
             project.tasks.nkpublish.dependsOn {
                 project.tasks.findAll { task -> task.name.startsWith('nkpublish-')}
+            }
+            
+            project.tasks.add(name: "nkrepoverify", type: NetKernelVerifyRepository) {
+            
             }
             
             // TODO: Publish depends on package?

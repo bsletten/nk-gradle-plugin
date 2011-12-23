@@ -258,4 +258,121 @@ class RepoHelper {
 		def signature = signHelper.signFileSignature(hashFile, keyStoreUser, keyStorePassword, keyStore)
 		hashSigFile.write(signature)
     }
+    
+    boolean verifyRepoHashFiles(def repo, def ks, def ksUser, def ksPassword) {
+        def retValue = false
+        def hashesFile = new File("${repo}/hashes.xml")
+        def hashesSigFile = new File("${repo}/hashes.sig")
+        
+        println "${hashesFile}"
+        println "${hashesSigFile}"
+        
+        if(hashesFile.exists() && hashesSigFile.exists()) {
+            def hashesSignature = signHelper.signFileSignature(hashesFile, ksUser, ksPassword, ks)
+            
+            if(hashesSignature.equals(hashesSigFile.getText())) {
+                retValue = true
+            } else {
+                println "Generated signature of ${hashesFile} does not match contents of ${hashesSigFile}"
+            }
+        }
+        
+        println "${repo} : ${retValue}"
+        retValue
+    }
+    
+    boolean verifyRepoPackageFiles(def repo, def ks, def ksUser, def ksPassword) {
+        def hashesFile = new File("${repo}/hashes.xml")
+        def hashes = new XmlSlurper().parse(hashesFile)
+        def retValue = true
+        
+        hashes.hash.each { h ->
+            // Short circuit on failure. Doesn't seem to be a clean
+            // way to stop otherwise.
+            
+            println "Checking: ${h.file}"
+            
+            if(retValue) {
+                def f = new File("${repo}/${h.file}")
+                
+                // Check the SHA-256 hash
+
+                retValue = hashHelper.hashFile("SHA-256", f).equals(h.sha256.text())
+                
+                // If we are still valid, check the MD5 hash
+
+                if(retValue) {
+                    retValue = hashHelper.hashFile("MD5", f).equals(h.md5.text())
+                    
+                    if(!retValue) {
+                        println "MD5 hash check failed for ${f} in ${hashesFile}"
+                    }
+                } else {
+                    println "SHA-256 hash check failed for ${f} in ${hashesFile}"
+                }
+                
+                // If we are still valid, check the package files themselves
+                
+                def mainRepoDir = repo.parentFile.parentFile.parentFile
+                
+                if(retValue) {
+                    def packages = new XmlSlurper().parse(f)
+                    
+                    packages.package.each { p ->
+                        def filename = p.filename.text()
+                        def filepath = p.filepath.text()
+                        
+                        def packageFile = new File("${mainRepoDir}/${filepath}/${filename}")
+                        def packageSignature = signHelper.signFileSignature(packageFile, ksUser, ksPassword, ks)
+                        
+                        retValue = packageSignature.equals(p.trust.signature.text())
+                        
+                        if(retValue) {
+                            retValue = hashHelper.hashFile("SHA-256", packageFile).equals(p.trust.sha256.text())
+
+                            if(retValue) {
+                                retValue = hashHelper.hashFile("MD5", packageFile).equals(p.trust.md5.text())
+                                
+                                if(!retValue) {
+                                    println "MD5 hash check failed for ${packageFile} in ${f}"
+                                }
+                            } else {
+                                println "SHA-256 hash check failed for ${packageFile} in ${f}"
+                            }
+                        } else {
+                            println "Generated signature of ${packageFile} does not match contents of ${f}" 
+                        }
+                    }
+                }
+             }
+        }
+        
+        retValue
+    }
+    
+    boolean verifySpecificRepo(def repo, def ks, def ksUser, def ksPassword) {
+        boolean retValue = true
+        
+        verifyRepoHashFiles(repo, ks, ksUser, ksPassword) && verifyRepoPackageFiles(repo, ks, ksUser, ksPassword)
+    }
+    
+    def verifyRepository(def netKernelRepoDir, def ks, def ksUser, def ksPassword) {
+    
+        def brokenRepos = []
+
+        // Find all the named repositories
+        def reposDir = new File("${netKernelRepoDir}/netkernel").listFiles()
+        
+        // Check every version of every named repository
+        reposDir.each { r ->
+            def repoVersionDir = new File("${r}").listFiles()
+            def invalid = repoVersionDir.findAll { !verifySpecificRepo( it, ks, ksUser, ksPassword ) }
+            
+            invalid.each { i ->
+                brokenRepos << i
+            }
+        }
+        
+        brokenRepos
+    }
 }

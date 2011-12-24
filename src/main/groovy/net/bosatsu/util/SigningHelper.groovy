@@ -75,4 +75,20 @@ class SigningHelper {
 		
 		return retValue
 	}
+	
+	String extractCert(File keystore, String keyId, String password) {
+    	String retValue = false
+	
+    	try {
+    		def ks = KeyStore.getInstance(KeyStore.getDefaultType())		
+    		ks.load(new FileInputStream(keystore), password.toCharArray())
+    		def pw = new KeyStore.PasswordProtection(password.toCharArray())
+    		def cert = ks.getCertificate(keyId)
+    		retValue = cert.getEncoded().encodeBase64().toString()
+    	} catch(Throwable t) {
+    		t.printStackTrace()
+    	}		
+	
+    	return retValue	
+	}
 }

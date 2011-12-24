@@ -31,6 +31,7 @@ import net.bosatsu.gradle.tasks.NetKernelPackageManifestFile
 import net.bosatsu.gradle.tasks.NetKernelPackageModuleFile
 import net.bosatsu.gradle.tasks.NetKernelPublishPackage
 import net.bosatsu.gradle.tasks.NetKernelVerifyRepository
+import net.bosatsu.gradle.tasks.NetKernelGenerateRepoConnectionSettings
 
 class NetKernelPlugin implements Plugin<Project> { 
 
@@ -124,6 +125,18 @@ class NetKernelPlugin implements Plugin<Project> {
             project.tasks.add(name: "nkrepoverify", type: NetKernelVerifyRepository) {
             
             }
+            
+            project.tasks.add(name: "nkrepoconnectionsettings", type: NetKernelGenerateRepoConnectionSettings)
+            project.tasks.add(name: "nkrepoconnection", type: Zip) {
+                destinationDir=project.file("${project.buildDir}/repos") 
+                from project.tasks.nkrepoconnectionsettings.settingsDir
+
+                doFirst {
+                    archiveName = project.tasks.nkrepoconnectionsettings.archiveName
+                }
+            }
+            
+            project.tasks.nkrepoconnection.dependsOn 'nkrepoconnectionsettings'
             
             // TODO: Publish depends on package?
         }

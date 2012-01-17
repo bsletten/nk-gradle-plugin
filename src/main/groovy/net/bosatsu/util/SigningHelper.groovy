@@ -16,6 +16,7 @@
 
 package net.bosatsu.util
 
+import java.io.InputStream
 import java.security.KeyStore
 import java.security.MessageDigest
 import java.security.PrivateKey
@@ -26,7 +27,7 @@ import java.security.cert.CertificateFactory
 class SigningHelper {
 	int KB = 1024
 	int MB = 1024*KB
-
+	
 	String signFileSignature(File f, String keyId, String password, File keystore) {
 		String retValue = null
 		
@@ -47,6 +48,39 @@ class SigningHelper {
 			t.printStackTrace()
 		}
 		
+		return retValue
+	}
+	
+	// This method is only used for signing NetKernel modules because of a legacy
+	// bug in terms of how they signed things.
+	String signModule(InputStream bis, String keyId, String password, File keystore) {
+		String retValue = null
+		
+		try {
+			def ks = KeyStore.getInstance(KeyStore.getDefaultType())		
+			ks.load(new FileInputStream(keystore), password.toCharArray())
+			def pw = new KeyStore.PasswordProtection(password.toCharArray())
+			def keyEntry = ks.getEntry(keyId, pw)
+			def pk = keyEntry.getPrivateKey()
+			def signature = Signature.getInstance("SHA1withRSA")
+			signature.initSign(pk)
+			
+			// NOTE: If you look closely, this is not correct, but it is 
+			// how legacy signing was done w/ NetKernel, so we need the ability
+			// to replicate it to be compatible with its code signing checks.
+		    int a=0;
+        	while((a=bis.available())>0)
+        	{	byte[] b=new byte[256];
+        		bis.read(b);
+        		signature.update(b);
+        	}
+        		
+        	byte [] results = signature.sign()
+        	retValue = new BigInteger(1, results).toString(16)
+		} catch(Throwable t) {
+			t.printStackTrace()
+		}
+
 		return retValue
 	}
 	

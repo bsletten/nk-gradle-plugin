@@ -30,12 +30,15 @@ class HashHelper {
 		}
 		
 		def messageDigest = MessageDigest.getInstance(hashFunction)
-		
-		file.eachByte(MB) { byte[] buf, int bytesRead ->
-			messageDigest.update(buf, 0, bytesRead)
-		}
+		hashIntoDigest(messageDigest, file)
 		
 		retValue = new BigInteger(1, messageDigest.digest()).toString(16)
 		retValue
+	}
+	
+	void hashIntoDigest(def digest, File file) {
+    	file.eachByte(MB) { byte[] buf, int bytesRead ->
+    	    digest.update(buf, 0, bytesRead)
+    	}	    
 	}
 }

@@ -21,6 +21,8 @@ import org.junit.Test
 
 import static org.junit.Assert.*
 
+import java.security.*
+
 class SigningHelperTest {
 	def SigningHelper helper
 	File f
@@ -46,6 +48,7 @@ class SigningHelperTest {
 	@Test
 	void testVerify() {
 		String signature = "64a6e4c7b33359dce0ebe9e0ad069eb0f0838c2f990cdc1df9218b95475ab7d545a5648945769e594b1cba546bb00ed5b0321c8ecd8fe77eec08d203166aee0684c5f1108a8c86e27507c6aa58fb03d226befc3bc31e47b4a741e9f3e866f635de7f95937da0cfb1a6058e8b77ac495220173449f95c4d6efc41f641344f567ef439cdfa0804427a5b62743186f9d2896a2536f1cd4527446f3238eb47a747b31ffc9e877a6cea32db3877baab0503dc2a0d7f4cb3edd8b963907ce4e574f51e853a13c975f64e0721805b592af5f52fe55d4b34899300f62ed3ef4b246a246355abbc961939f0f3e35aaede553e16d883f49eb855345c62afc08d05aa7fbe2e"
+		
 		boolean verification = helper.verifySignature(f, signature, 'testkey', 't3stpassw0rd', fs)
 		assertTrue "Signature verified", verification
 	}

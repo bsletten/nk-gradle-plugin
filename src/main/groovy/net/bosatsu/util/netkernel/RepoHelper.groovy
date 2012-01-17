@@ -18,6 +18,7 @@ package net.bosatsu.util.netkernel
 
 import groovy.xml.StreamingMarkupBuilder
 import groovy.xml.MarkupBuilder
+import java.security.MessageDigest
 
 import net.bosatsu.util.HashHelper
 import net.bosatsu.util.SigningHelper
@@ -77,55 +78,49 @@ class RepoHelper {
         writer.close()
     }
     
-    def createPackageNode(def root, def packageDir, def packageFile, def packageDef, def keyStore, def keyStoreUser, def keyStorePassword) {
-    
-        def sw = new StringWriter()
-        def xml = new MarkupBuilder(sw)
+    def createPackageDigest(def project, def packageRepoFile) {
         
-        def packageRepoFile = new File("${packageDir}/${packageFile}")
+    	def messageDigest = MessageDigest.getInstance("MD5")
+        def zf = project.zipTree(packageRepoFile).collect{ it.absolutePath }.sort()
         
-        xml.package() {
-            name(packageDef['name'])
-
-            packagedescr('Description')
-            runLevel(5)
-            section()
-            maintainer()
-            www()
-            license()
-            version(packageDef['version'])
-            versiondescr()
-            size((int) Math.floor(packageRepoFile.length() / 1000))
-                        
-            filename(packageFile)
-            def firstLetter = packageFile.substring(0,1).toUpperCase()
-            filepath("packages/${firstLetter}/")
-            
-            trust {
-                // TODO: Change the order of this to ks, ksuser, kspass to be consistent
-                signature(signHelper.signFileSignature(packageRepoFile, keyStoreUser, keyStorePassword, keyStore))
-                md5(hashHelper.hashFile("MD5", packageRepoFile))
-                sha256(hashHelper.hashFile("SHA-256", packageRepoFile))
-            }
-            
-            dependencies()
+        zf.each { z ->
+            def f = project.file(z)
+    		project.hashHelper.hashIntoDigest(messageDigest, f)
         }
         
-        new XmlParser().parseText(sw.toString())
+        messageDigest.digest()
+    }
+    
+    boolean specificVersionExists(String name, String version) {
+        boolean retValue = false
+        
+      /*  ['base', 'update', 'security'].each {
+            
+        }
+
+        
+        retValue = repo.package.size() != 0 && repo.package.findAll{ it.name.text() == name && it.name} */
+        
+        retValue
     }
     
     boolean canAddToRepo(def repo, String name) {
         repo.package.size() == 0 || repo.package.findAll{ it.name.text() == name }.size() == 0
     }
     
-    def finalizePublishAction(def packageDir, def packageFile, def packageDef, def keyStore, def keyStoreUser, def keyStorePassword, def repositoryFiles) {
+    def finalizePublishAction(def packageDir, def packageFile, def packageDef, def packageNode, def keyStore, def keyStoreUser, def keyStorePassword, def repositoryFiles) {
         
         def name = packageDef['repo']
         def version = packageDef['repoversion']
         def set = packageDef['set']
+        def packageName = packageDef['name']
 
         def repo = getRepo(name, version, 'base', set)
         def distributionType = 'base'
+        
+       /* if(specificVersionExists(repo, packageName, version)) {
+            throw new Exception("Package: ${packageName} already has a version ${version} in repository: ${name}")
+        }*/
         
         if(!canAddToRepo(repo, packageDef['name'])) {
             repo = getRepo(name, version, 'update', set)
@@ -136,7 +131,7 @@ class RepoHelper {
             }
         }
         
-        repo.children().add(createPackageNode(repo, packageDir, packageFile, packageDef, keyStore, keyStoreUser, keyStorePassword))
+        repo.children().add(packageNode)
 
         storeRepo(repo, name, version, distributionType, set)
         
@@ -264,24 +259,20 @@ class RepoHelper {
         def hashesFile = new File("${repo}/hashes.xml")
         def hashesSigFile = new File("${repo}/hashes.sig")
         
-        println "${hashesFile}"
-        println "${hashesSigFile}"
-        
         if(hashesFile.exists() && hashesSigFile.exists()) {
             def hashesSignature = signHelper.signFileSignature(hashesFile, ksUser, ksPassword, ks)
-            
+                        
             if(hashesSignature.equals(hashesSigFile.getText())) {
                 retValue = true
             } else {
                 println "Generated signature of ${hashesFile} does not match contents of ${hashesSigFile}"
             }
         }
-        
-        println "${repo} : ${retValue}"
+
         retValue
     }
     
-    boolean verifyRepoPackageFiles(def repo, def ks, def ksUser, def ksPassword) {
+    boolean verifyRepoPackageFiles(def project, def repo, def ks, def ksUser, def ksPassword) {
         def hashesFile = new File("${repo}/hashes.xml")
         def hashes = new XmlSlurper().parse(hashesFile)
         def retValue = true
@@ -323,7 +314,10 @@ class RepoHelper {
                         def filepath = p.filepath.text()
                         
                         def packageFile = new File("${mainRepoDir}/${filepath}/${filename}")
-                        def packageSignature = signHelper.signFileSignature(packageFile, ksUser, ksPassword, ks)
+                        
+                        def packageDigest = createPackageDigest(project, packageFile)
+                        def bis = new ByteArrayInputStream(packageDigest)
+                        def packageSignature = signHelper.signModule(bis, ksUser, ksPassword, ks)
                         
                         retValue = packageSignature.equals(p.trust.signature.text())
                         
@@ -350,13 +344,13 @@ class RepoHelper {
         retValue
     }
     
-    boolean verifySpecificRepo(def repo, def ks, def ksUser, def ksPassword) {
+    boolean verifySpecificRepo(def project, def repo, def ks, def ksUser, def ksPassword) {
         boolean retValue = true
         
-        verifyRepoHashFiles(repo, ks, ksUser, ksPassword) && verifyRepoPackageFiles(repo, ks, ksUser, ksPassword)
+        verifyRepoHashFiles(repo, ks, ksUser, ksPassword) && verifyRepoPackageFiles(project, repo, ks, ksUser, ksPassword)
     }
     
-    def verifyRepository(def netKernelRepoDir, def ks, def ksUser, def ksPassword) {
+    def verifyRepository(def project, def netKernelRepoDir, def ks, def ksUser, def ksPassword) {
     
         def brokenRepos = []
 
@@ -366,7 +360,7 @@ class RepoHelper {
         // Check every version of every named repository
         reposDir.each { r ->
             def repoVersionDir = new File("${r}").listFiles()
-            def invalid = repoVersionDir.findAll { !verifySpecificRepo( it, ks, ksUser, ksPassword ) }
+            def invalid = repoVersionDir.findAll { !verifySpecificRepo( project, it, ks, ksUser, ksPassword ) }
             
             invalid.each { i ->
                 brokenRepos << i

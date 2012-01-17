@@ -18,6 +18,8 @@ package net.bosatsu.gradle
 
 import org.gradle.api.Project
 import net.bosatsu.util.netkernel.RepoHelper
+import net.bosatsu.util.HashHelper
+import net.bosatsu.util.SigningHelper
 
 class NetKernelConvention {
 	File netKernelRootDir
@@ -29,6 +31,8 @@ class NetKernelConvention {
 	Project p
 	
 	RepoHelper repoHelper
+	HashHelper hashHelper
+	SigningHelper signHelper
 	
 	static String LOCAL_INSTALLATION_URL = "http://localhost:1060/tools/scriptplaypen?action2=execute&type=gy&example&identifier&name&space&script=context.createResponseFrom%28context.source%28%22netkernel:/config/netkernel.install.path%22%29%29"
 
@@ -83,6 +87,8 @@ class NetKernelConvention {
 		}
 		
 		repoHelper = new RepoHelper(netKernelRepoDir)
+		hashHelper = new HashHelper()
+		signHelper = new SigningHelper()
 		
 		if(p.hasProperty('netkernelrepokeystore')) {
 			netKernelRepoKeyStore = p.file(p.netkernelrepokeystore)

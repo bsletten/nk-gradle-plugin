@@ -1,3 +1,107 @@
 A Gradle Plugin for building NetKernel modules.
 
 Generous Gradle guidance provided by @tlberglund (https://github.com/tlberglund).
+
+More documentation is coming soon, but for now:
+
+1) Install Gradle (http://gradle.org)
+
+2) From this directory, run:
+
+gradle install
+
+This will install the plugin into a local Maven repository in your home directory. You do 
+not need Maven installed for this to happen.
+
+3) In your $HOME/.gradle/gradle.properties file put at least the following:
+
+netkernelroot=/dir/where/you/installed/netkernel/EE-5.1.1/
+
+This should point to a NetKernel installation. Future support will allow you to 
+download NetKernel as part of the build. If you have NetKernel running, the build
+system will find it and where it is installed, but you'll probably want to add
+the property as above.
+
+4) The minimum you need to add to your NetKernel module is a file called build.gradle that looks
+like the following:
+
+apply plugin: 'netkernel'
+
+dependencies {
+	groovy localGroovy()
+}
+
+buildscript {
+	repositories {
+		mavenLocal()
+	}
+	
+	dependencies {
+        classpath group: 'net.bosatsu.gradle', name: 'nk-gradle-plugin', version: '0.0.13'
+	}
+}
+
+You should now be able to say:
+
+gradle clean        ; cleans the build dir
+gradle nkpackage    ; compiles any Java/Groovy code, generates a module and builds a deployable
+                    ; package with default settings
+                    
+The module file itself will be put into build/modules. The package will be in build/packages.
+
+If you want to compile "in place", add the directory to NetKernel's etc/modules.xml and you 
+should be able to do:
+
+gradle compileGroovy    ; compiles both Groovy and Java code found in the module
+
+4) If you want to create an Apposite Repository, you will need the following as well
+
+a) Generate a keystore:
+
+http://localhost:1060/book/view/book:security:book/doc:security:signStandard
+
+For now, use the same password for the keystore and the key.
+
+b) Add the following to your $HOME/.gradle/gradle.properties
+
+netkernelrepo=/dir/where/you/want/the/repo/created/locally
+netkernelrepokeystore=/dir/in/which/to/find/your/keystore
+netkernelpubrepo=RepoName
+netkernelpubver=1.0.0
+netkernelpubbaseuri=file:/dir/where/you/want/the/repo/found/by/apposite
+netkernelpubname=A name for the repo
+netkernelpubdescr=A description of the repo
+
+c) Add something like the following to your module's build.gradle after the apply:
+
+nkconfig {
+	definePackage(name: 'package-a', description: "MyPackage", version: '0.0.1', 
+	   repo: 'RepoName', repoversion: '1.0.0', set: 'main')
+}
+
+d) No you should be able to publish your package into the repository:
+
+gradle nkpublish -PnetKernelKeyStoreUser=<keyid> -PnetKernelKeyStorePassword=<password>
+
+Note: As mentioned above, for now the keystore and keyid should be the same.
+
+This should produce a valid repository structure. You can verify it by saying:
+
+gradle nkrepoverify -PnetKernelKeyStoreUser=<keyid> -PnetKernelKeyStorePassword=<password>
+
+The repo that is generated will be regenerated as needed. You'll probably want to be careful
+with it and use version control or something on it.
+
+e) Use rsync or something to connect this repo to a production system (or just use it if you)
+are running locally. To generate the repo connection settings to upload to an Apposite
+instance:
+
+gradle nkrepoconnection -PnetKernelKeyStoreUser=<keyid> -PnetKernelKeyStorePassword=<password>
+
+This will generate the Zip file in build/repos.
+
+NOTES:
+------
+This is just a quick introduction. There is also support for multiple modules, multiple packages, etc.
+But we will add more documentation and examples shortly. This will also become a useful framework
+for creating modules and managing many aspects of the NetKernel development process.

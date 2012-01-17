@@ -28,7 +28,7 @@ class NetKernelVerifyRepository extends DefaultTask {
         String ksUser=project.netKernelKeyStoreUser
         String ksPassword=project.netKernelKeyStorePassword
         def ks = project.netKernelRepoKeyStore
-        def invalidRepos = project.repoHelper.verifyRepository(project.netKernelRepoDir, ks, ksUser, ksPassword)
+        def invalidRepos = project.repoHelper.verifyRepository(project, project.netKernelRepoDir, ks, ksUser, ksPassword)
         
         def valid = (invalidRepos.size() == 0)
         

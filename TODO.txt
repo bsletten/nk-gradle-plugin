@@ -1,2 +1,2 @@
-- Remove the need for dependsOnNetkernelModule by interrogating the module.xml files, etc/modules.xml, etc.
-- Retrieve dependent libraries from Maven rather than storing them in a CM system
+- Fail on attempt to publish the same version into a repo
+- Retrieve dependent libraries from Maven rather than storing them in a CM system?

@@ -102,6 +102,15 @@ class NetKernelPlugin implements Plugin<Project> {
                 project.tasks."$packageTaskName".dependsOn manifestTaskName
                 project.tasks."$packageTaskName".dependsOn moduleTaskName
                 
+                
+                if(project.subprojects.size() > 0) {
+                    project.subprojects.each { s ->
+                        project.tasks."$packageTaskName".dependsOn s.tasks.jar
+                    }
+                } else {
+                    project.tasks."$packageTaskName".dependsOn project.tasks.jar
+                }
+                
                 project.tasks.add(name: "nkpublish-$name", type: NetKernelPublishPackage) {
                     packageDef = p
                     packageTask = packageTaskName
@@ -170,7 +179,7 @@ class NetKernelPlugin implements Plugin<Project> {
             main { 
                 java {
                     srcDir project.projectDir
-                    classesDir = project.projectDir
+                    output.classesDir = project.projectDir
                 } 
             } 
         }
@@ -179,7 +188,7 @@ class NetKernelPlugin implements Plugin<Project> {
             main { 
                 groovy {
                     srcDir project.projectDir
-                    classesDir = project.projectDir
+                    output.classesDir = project.projectDir
                 } 
             } 
         }

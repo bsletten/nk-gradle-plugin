@@ -1,2 +1,4 @@
 - Fail on attempt to publish the same version into a repo
+- Better error handling around keystores
+- Force a jar task if there are no Java or Groovy files
 - Retrieve dependent libraries from Maven rather than storing them in a CM system?

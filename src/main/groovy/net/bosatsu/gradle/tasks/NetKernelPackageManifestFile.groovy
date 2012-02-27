@@ -63,8 +63,8 @@ class NetKernelPackageManifestFile extends DefaultTask {
 		def nonce = project.tasks."$nonceTaskName".nonce
 	
 		xml.manifest() {
-			name(packageName)
-			description(packageDescription)
+			xml.name(packageName)
+			xml.description(packageDescription)
 			version(packageVersion)
 		
 			modules.each { m ->

@@ -82,7 +82,7 @@ class NetKernelPublishPackage extends Copy {
         def packageRepoFile = new File("${packageDir}/${packageFile}")
         
         xml.package() {
-            name(packageDef['name'])
+            xml.name(packageDef['name'])
 
             packagedescr('Description')
             runlevel(5)

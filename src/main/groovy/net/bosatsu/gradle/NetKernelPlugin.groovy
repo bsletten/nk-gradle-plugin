@@ -27,11 +27,13 @@ import net.bosatsu.util.netkernel.ModuleHelper
 import net.bosatsu.util.netkernel.RepoHelper
 
 import net.bosatsu.gradle.tasks.NetKernelPackage
+import net.bosatsu.gradle.tasks.NetKernelPackageDaemonFile
 import net.bosatsu.gradle.tasks.NetKernelPackageManifestFile
 import net.bosatsu.gradle.tasks.NetKernelPackageModuleFile
 import net.bosatsu.gradle.tasks.NetKernelPublishPackage
 import net.bosatsu.gradle.tasks.NetKernelVerifyRepository
 import net.bosatsu.gradle.tasks.NetKernelGenerateRepoConnectionSettings
+import net.bosatsu.gradle.tasks.NetKernelLocalDeploy
 
 class NetKernelPlugin implements Plugin<Project> { 
 
@@ -54,11 +56,12 @@ class NetKernelPlugin implements Plugin<Project> {
         project.afterEvaluate {
             project.packages.each { p->
                 def name = p['name']
+                def daemonize = p['daemonize']
                 
                 def packageTaskName = "nkpackage-$name"
                 
                 def manifestTaskName = "$packageTaskName-manifest"
-                def moduleTaskName = "$packageTaskName-module"              
+                def moduleTaskName = "$packageTaskName-module" 
                 
                 project.tasks.add(name: manifestTaskName, type: NetKernelPackageManifestFile) 
                 {
@@ -111,11 +114,32 @@ class NetKernelPlugin implements Plugin<Project> {
                     project.tasks."$packageTaskName".dependsOn project.tasks.jar
                 }
                 
+                if(daemonize) {
+                    project.tasks.add(name: "nkgenerate-daemon-$name", type: NetKernelPackageDaemonFile) {
+                        packageName = name
+                        
+                        if(p['modules'] != null) {
+                            packageModules = p['modules']
+                        }
+                    }
+                    
+                    project.tasks."nkgenerate-daemon-$name".dependsOn('nkpackage')
+                }
+                
                 project.tasks.add(name: "nkpublish-$name", type: NetKernelPublishPackage) {
                     packageDef = p
                     packageTask = packageTaskName
                     initialize()
                 }
+            }
+            
+            project.tasks.add(name: "nkdaemon-deploy", type: NetKernelLocalDeploy) {
+                initialize()
+            }
+            // TODO: What does it depend on?
+            
+            project.tasks.'nkdaemon-deploy'.dependsOn {
+                project.tasks.findAll { task -> task.name.startsWith('nkgenerate-daemon-')}
             }
         
             project.tasks.add('nkpackage') {

@@ -100,6 +100,38 @@ gradle nkrepoconnection -PnetKernelKeyStoreUser=<keyid> -PnetKernelKeyStorePassw
 
 This will generate the Zip file in build/repos.
 
+f) Tom Geudens (@tomgeudens) introduced a new "daemon" directory to make it easier to add modules to 
+a NetKernel installation. To use the Gradle plugin to "publish" into this directory, you will need to 
+add this line to the ${netkernelroot}/etc/kernel.properties:
+
+netkernel.init.modulesdir=etc/modules.d/
+
+The directory can be either relative to the NetKernel installation or absolute anywhere on the
+filesystem.
+
+gradle nkdaemon-deploy
+
+will build your project and generate any requested daemon files and copy them into the directory
+specified above.
+
+To specify that a package be included, add the daemonize property to your definePackage call:
+
+nkconfig {
+	definePackage(name: 'single-module', description: 'A package with a single module', version: '0.0.8', 
+	   repo: 'Foo', repoversion: '1.0.0', set: 'main', daemonize : true)
+}
+
+Any modules associated with the package will be assembled into the daemon file.
+
+Currently, individual modules are not supported but will be soon. There is also not any ability
+to remove the daemon files. This should be done manually at the moment. If you change whether a
+package should be published like this, you should do a
+
+gradle clean nkdaemon-deploy
+
+to clear out the old files. In the future, the plugin will remove any old files that are not
+regenerated prior to copying them over.
+
 NOTES:
 ------
 This is just a quick introduction. There is also support for multiple modules, multiple packages, etc.

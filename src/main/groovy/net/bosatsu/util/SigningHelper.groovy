@@ -28,6 +28,8 @@ class SigningHelper {
 	int KB = 1024
 	int MB = 1024*KB
 	
+	def hashHelper = new HashHelper()
+	
 	String signFileSignature(File f, String keyId, String password, File keystore) {
 		String retValue = null
 		
@@ -42,6 +44,7 @@ class SigningHelper {
 			f.eachByte(MB) { byte[] buf, int bytesRead ->
 				signature.update(buf, 0, bytesRead)
 			}
+			
 			retValue = hashHelper.toHexString(signature.sign())
 		} catch(Throwable t) {
 			t.printStackTrace()

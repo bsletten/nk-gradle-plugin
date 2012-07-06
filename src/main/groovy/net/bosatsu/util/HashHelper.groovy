@@ -63,7 +63,7 @@ class HashHelper {
 	/**
      * Shamelessly stolen from 1060 Research
      */
-    private String toHexString(byte[] ba) {
+    String toHexString(byte[] ba) {
        byte[] hex = new byte[2 * ba.length];
        int index = 0;
        for (byte b : ba) {
@@ -79,6 +79,7 @@ class HashHelper {
           //Can't happen but dump it anyway in case...
           e.printStackTrace();
        }
+
        return result;
     }
 }

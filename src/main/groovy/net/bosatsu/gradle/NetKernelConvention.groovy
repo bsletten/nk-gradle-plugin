@@ -75,7 +75,7 @@ class NetKernelConvention {
 			} else {
 			    // TODO: I don't think this else clause is in the right place. It should probably be on the location != null check
 				println "NetKernel Gradle plugin currently requires you to specify a NetKernel installation directory."
-				println 'Please put a gradle.properties file in user.home/.gradle or use: gradle -Dnetkernelhome=<installation>'
+				println 'Please put a gradle.properties file in user.home/.gradle or use: gradle -Dnetkernelroot=<installation>'
 			}
 		}
 		

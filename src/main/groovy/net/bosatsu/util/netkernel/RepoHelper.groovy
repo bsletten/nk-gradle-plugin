@@ -23,6 +23,8 @@ import java.security.MessageDigest
 import net.bosatsu.util.HashHelper
 import net.bosatsu.util.SigningHelper
 
+import org.gradle.api.GradleException
+
 class RepoHelper {
     int packageCount
     
@@ -53,15 +55,88 @@ class RepoHelper {
         checkRepositoryDir(name, version)
         
         if(packageDef['set'] == null) {
-            // TODO: Fail
+         // TODO: Fail
         }
-        
-        checkSetDir(name, version, packageDef['set'])
-        
-        // TODO: Thread safety? File lock?
-        packageCount++
-    }
-    
+
+      checkSetDir(name, version, packageDef['set'])
+
+      // TODO: Thread safety? File lock?
+      packageCount++
+   }
+
+   def getRepos(def name, def version, def distributionType) {
+      def result = [:]
+      def repoDir = new File("${repoDir}/netkernel/${name}/${version}/${distributionType}")
+      repoDir.listFiles().each { setDirectory ->
+         result.put(setDirectory.name, new XmlParser().parse(new File(setDirectory, "repository.xml")))
+      }
+      result
+   }
+
+   def createPackageDigest(def project, def packageRepoFile) {
+
+      def messageDigest = MessageDigest.getInstance("MD5")
+      def zf = project.zipTree(packageRepoFile).collect{ it.absolutePath }.sort()
+
+      zf.each { z ->
+         def f = project.file(z)
+         project.hashHelper.hashIntoDigest(messageDigest, f)
+      }
+
+      messageDigest.digest()
+   }
+
+   void verifyThatVersionDoesntExist(String repoName, String repoVersion, String packageName, String packageVersion) {
+      // This will aggressively look at the entire repository for the package
+      ['base', 'update', 'security'].each { distributionType ->
+
+         def repos = getRepos(repoName, repoVersion, distributionType)
+         repos.each { set, repo ->
+            if(repo.package.size() != 0 && repo.package.findAll{ it.name.text() == packageName && it.name && it.version.text() == packageVersion }   ) {
+               throw new GradleException("Found package [name: $packageName, version: $packageVersion] in repository [${repoName}/${repoVersion}/${distributionType}/${set}]")
+            }
+         }
+      }
+   }
+
+   boolean canAddToRepo(def repo, String name) {
+      repo.package.size() == 0 || repo.package.findAll{ it.name.text() == name }.size() == 0
+   }
+
+   def finalizePublishAction(def packageDir, def packageFile, def packageDef, def packageNode, def keyStore, def keyStoreUser, def keyStorePassword, def repositoryFiles) {
+
+      def repoName = packageDef['repo']
+      def repoVersion = packageDef['repoversion']
+      def set = packageDef['set']
+      def packageName = packageDef['name']
+      def packageVersion = packageDef['version']
+
+      def repo = getRepo(repoName, repoVersion, 'base', set)
+      def distributionType = 'base'
+
+      verifyThatVersionDoesntExist(repoName, repoVersion, packageName, packageVersion)
+
+      if(!canAddToRepo(repo, packageDef['name'])) {
+         repo = getRepo(repoName, repoVersion, 'update', set)
+         distributionType = 'update'
+
+         if(!canAddToRepo(repo, packageDef['name'])) {
+            // TODO: Fail
+         }
+      }
+
+      repo.children().add(packageNode)
+
+      storeRepo(repo, repoName, repoVersion, distributionType, set)
+
+      // TODO: Thread safety? File lock?
+      --packageCount
+
+      if(packageCount == 0) {
+         rehashRepository(packageDef, keyStore, keyStoreUser, keyStorePassword, repositoryFiles)
+      }
+   }
+
     def getRepo(def name, def version, def distributionType, def set) {
         def repoFile = new File("${repoDir}/netkernel/${name}/${version}/${distributionType}/${set}/repository.xml")
         new XmlParser().parse(repoFile)
@@ -78,19 +153,6 @@ class RepoHelper {
         writer.close()
     }
     
-    def createPackageDigest(def project, def packageRepoFile) {
-        
-    	def messageDigest = MessageDigest.getInstance("MD5")
-        def zf = project.zipTree(packageRepoFile).collect{ it.absolutePath }.sort()
-        
-        zf.each { z ->
-            def f = project.file(z)
-    		project.hashHelper.hashIntoDigest(messageDigest, f)
-        }
-        
-        messageDigest.digest()
-    }
-    
     boolean specificVersionExists(String name, String version) {
         boolean retValue = false
         
@@ -102,45 +164,6 @@ class RepoHelper {
         retValue = repo.package.size() != 0 && repo.package.findAll{ it.name.text() == name && it.name} */
         
         retValue
-    }
-    
-    boolean canAddToRepo(def repo, String name) {
-        repo.package.size() == 0 || repo.package.findAll{ it.name.text() == name }.size() == 0
-    }
-    
-    def finalizePublishAction(def packageDir, def packageFile, def packageDef, def packageNode, def keyStore, def keyStoreUser, def keyStorePassword, def repositoryFiles) {
-        
-        def name = packageDef['repo']
-        def version = packageDef['repoversion']
-        def set = packageDef['set']
-        def packageName = packageDef['name']
-
-        def repo = getRepo(name, version, 'base', set)
-        def distributionType = 'base'
-        
-       /* if(specificVersionExists(repo, packageName, version)) {
-            throw new Exception("Package: ${packageName} already has a version ${version} in repository: ${name}")
-        }*/
-        
-        if(!canAddToRepo(repo, packageDef['name'])) {
-            repo = getRepo(name, version, 'update', set)
-            distributionType = 'update'
-            
-            if(!canAddToRepo(repo, packageDef['name'])) {
-                // TODO: Fail
-            }
-        }
-        
-        repo.children().add(packageNode)
-
-        storeRepo(repo, name, version, distributionType, set)
-        
-        // TODO: Thread safety? File lock?
-        --packageCount
-        
-        if(packageCount == 0) {
-            rehashRepository(packageDef, keyStore, keyStoreUser, keyStorePassword, repositoryFiles)
-        }
     }
     
     def checkRepositoryDir(def name, def version) {

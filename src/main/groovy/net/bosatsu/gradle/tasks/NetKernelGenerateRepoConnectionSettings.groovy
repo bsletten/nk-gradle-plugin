@@ -60,9 +60,10 @@ class NetKernelGenerateRepoConnectionSettings extends DefaultTask {
             typedName = "${repoName}-${repoType}"
         }
         
-        archiveName="apposite-reposettings-${typedName.toLowerCase()}-${repoVersion}.zip"
+        def archiveName="apposite-reposettings-${typedName.toLowerCase()}-${repoVersion}.zip"
         
-        def settingsFile = project.file("${settingsDir}/apposite-repo-settings.xml")  
+        def settingsFile = project.file("${settingsDir}/apposite-repo-settings.xml")
+        def unattendedSettingsFile = project.file("${settingsDir}/unattended-apposite-repo-settings.xml")
         
         def repoDir = project.file("${project.netKernelRepoDir}/netkernel/${repoName}/${repoVersion}")
         
@@ -77,6 +78,8 @@ class NetKernelGenerateRepoConnectionSettings extends DefaultTask {
             def parent = f.getParentFile().getName()
             sets << parent
         }
+        
+        // Write out the apposite settings file
                         
     	def writer = new StringWriter()
 		def xml = new MarkupBuilder(writer)
@@ -95,11 +98,10 @@ class NetKernelGenerateRepoConnectionSettings extends DefaultTask {
          settingsFile.write('<?xml version="1.0" encoding="UTF-8"?>\n')
          settingsFile.append(writer.toString())
          
-         def certificateFile = project.file("${settingsDir}/repo-public-key.cer")
-         
-         certificateFile.write('-----BEGIN CERTIFICATE-----\n')
+         // Generate a nicely-formatted certificate
          
          def sb = new StringBuffer()
+         sb.append('-----BEGIN CERTIFICATE-----\n')
          String cert = signingHelper.extractCert(ks, ksUser, ksPassword)
          int len = cert.length()
          int idx = 0
@@ -115,7 +117,33 @@ class NetKernelGenerateRepoConnectionSettings extends DefaultTask {
             sb.append("\n")
          }
          
-         certificateFile.append(sb.toString())
-         certificateFile.append('-----END CERTIFICATE-----\n')
+         sb.append('-----END CERTIFICATE-----\n')
+         
+         // Write out the certificate file
+         
+         def certificateFile = project.file("${settingsDir}/repo-public-key.cer")
+         certificateFile.write(sb.toString())
+         
+         // Now write out the unattended settings file w/
+         // the certificate embedded
+         
+         writer = new StringWriter()
+         xml = new MarkupBuilder(writer)
+         
+         xml.repository {
+             name(repoName)
+             descr(repoDescr)
+             baseURI(repoBaseURI)
+             path("${repoName}/${repoVersion}/")
+
+             sets.each { s->
+                 set(s)
+             }
+             
+           publickey(sb.toString())
+         }
+          
+         unattendedSettingsFile.write('<?xml version="1.0" encoding="UTF-8"?>\n')
+         unattendedSettingsFile.append(writer.toString())
     }
 }

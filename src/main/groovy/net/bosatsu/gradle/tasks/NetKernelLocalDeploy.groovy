@@ -27,7 +27,7 @@ class NetKernelLocalDeploy extends Copy {
     }
     
     void initialize() {
-        nkProperties = project.file("${project.netKernelRootDir}/etc/kernel.properties").eachLine { line ->
+        def nkProperties = project.file("${project.netKernelRootDir}/etc/kernel.properties").eachLine { line ->
             if(line ==~ /netkernel.init.modulesdir=(.*)/ ) {
                def daemonFileProp = line.substring(26)
                if(daemonFileProp[0] == File.separatorChar) {

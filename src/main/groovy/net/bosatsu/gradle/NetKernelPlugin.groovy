@@ -162,10 +162,15 @@ class NetKernelPlugin implements Plugin<Project> {
             project.tasks.add(name: "nkrepoconnectionsettings", type: NetKernelGenerateRepoConnectionSettings)
             project.tasks.add(name: "nkrepoconnection", type: Zip) {
                 destinationDir=project.file("${project.buildDir}/repos") 
-                from project.tasks.nkrepoconnectionsettings.settingsDir
+                
+                def nkrpcs = project.tasks.getByName("nkrepoconnectionsettings")
+                
+                //from project.tasks.nkrepoconnectionsettings.settingsDir
+                from nkrpcs.settingsDir                
 
                 doFirst {
-                    archiveName = project.tasks.nkrepoconnectionsettings.archiveName
+                    //archiveName = project.tasks.nkrepoconnectionsettings.archiveFileName
+                    archiveName = nkrpcs.archiveFileName                    
                 }
             }
             

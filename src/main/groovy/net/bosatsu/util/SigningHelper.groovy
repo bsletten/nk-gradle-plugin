@@ -42,8 +42,7 @@ class SigningHelper {
 			f.eachByte(MB) { byte[] buf, int bytesRead ->
 				signature.update(buf, 0, bytesRead)
 			}
-			
-			retValue = new BigInteger(1, signature.sign()).toString(16)
+			retValue = hashHelper.toHexString(signature.sign())
 		} catch(Throwable t) {
 			t.printStackTrace()
 		}
@@ -75,8 +74,8 @@ class SigningHelper {
         		signature.update(b);
         	}
         		
-        	byte [] results = signature.sign()
-        	retValue = new BigInteger(1, results).toString(16)
+         retValue = hashHelper.toHexString(signature.sign())
+
 		} catch(Throwable t) {
 			t.printStackTrace()
 		}

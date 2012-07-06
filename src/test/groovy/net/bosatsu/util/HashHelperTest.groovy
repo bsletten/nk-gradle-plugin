@@ -16,6 +16,7 @@
 
 package net.bosatsu.util
 
+import junit.framework.Assert
 import org.junit.Before
 import org.junit.Test
 
@@ -52,4 +53,11 @@ class HashHelperTest {
 	void testMD5() {
 		def result = helper.hashFile("MD5", f)
 	}
+	
+   @Test
+   void testWithPrecedingZeroInResultingHash() {
+     f = new File(this.getClass().getResource('/231.txt').getFile())
+     def result = helper.hashFile("SHA-256", f)
+     Assert.assertEquals("075198bfe61765d35f990debe90959d438a943ceeb9d39440e7db5455d449086", result)
+   }
 }

@@ -8,7 +8,7 @@ repositories {
 }
 
 group = 'net.bosatsu.gradle'
-version = '0.0.18-SNAPSHOT'
+version = '0.0.18'
 
 dependencies {
     compile gradleApi()

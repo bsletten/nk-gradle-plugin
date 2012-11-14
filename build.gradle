@@ -4,14 +4,19 @@ apply {
 }
 
 repositories { 
+    mavenLocal()
   	mavenCentral()
 }
 
 group = 'net.bosatsu.gradle'
-version = '0.0.18'
+version = '0.0.20'
 
 dependencies {
     compile gradleApi()
+    
+    // Needed for nksynchronize & nkinstallorupdate
+    compile 'org.apache.httpcomponents:httpclient:4.1.2'
+    
 	// TODO: Investigate if we can use the Groovy that comes w/ NetKernel to avoid
 	// version problems.
     groovy localGroovy()

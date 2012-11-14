@@ -17,6 +17,9 @@
 package net.bosatsu.gradle
 
 import org.gradle.api.Project
+
+import net.bosatsu.util.netkernel.AppositeHelper
+import net.bosatsu.util.netkernel.PackageDependencyHelper;
 import net.bosatsu.util.netkernel.RepoHelper
 import net.bosatsu.util.HashHelper
 import net.bosatsu.util.SigningHelper
@@ -30,6 +33,7 @@ class NetKernelConvention {
 	
 	Project p
 	
+	AppositeHelper appositeHelper
 	RepoHelper repoHelper
 	HashHelper hashHelper
 	SigningHelper signHelper
@@ -87,6 +91,7 @@ class NetKernelConvention {
 			netKernelRepoDir = p.file(repoLocation)
 		}
 		
+		appositeHelper = new AppositeHelper(p.netkernelbaseuri)
 		repoHelper = new RepoHelper(netKernelRepoDir)
 		hashHelper = new HashHelper()
 		signHelper = new SigningHelper()
@@ -140,6 +145,10 @@ class NetKernelConvention {
 	
 	def definePackage(Map map) {
 		if(map['name'] != null && map['description'] != null && map['version'] != null) {
+		    if(map['dependencies']) {
+               def packageDependencyHelper = new PackageDependencyHelper(map['dependencies'])
+               map['dependencies'] = packageDependencyHelper.processDependencies()
+            }
 			packages << map		
 		} else {
 			println "WARNING: Specified package: $map must include 'name', 'description' and 'version' attributes."

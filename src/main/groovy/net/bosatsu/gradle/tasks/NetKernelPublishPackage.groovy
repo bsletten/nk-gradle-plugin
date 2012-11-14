@@ -17,8 +17,9 @@
 package net.bosatsu.gradle.tasks
 
 import java.io.ByteArrayInputStream
+
+import org.gradle.api.GradleException
 import org.gradle.api.tasks.Copy
-import groovy.xml.StreamingMarkupBuilder
 import groovy.xml.MarkupBuilder
 import java.security.MessageDigest
 
@@ -28,6 +29,7 @@ class NetKernelPublishPackage extends Copy {
     def packageDir
     def packageFile
     def packageDef
+    def packageDependencies
     
     NetKernelPublishPackage() {
         doFirst {
@@ -42,7 +44,7 @@ class NetKernelPublishPackage extends Copy {
             def version = packageDef['repoversion']
             def repoDir = project.file("${project.netKernelRepoDir}/netkernel/${name}/${version}")
             def fileList = project.fileTree(dir: repoDir, include: '**/repository.xml')
-            def packageNode = createPackageNode( packageDir, packageFile, packageDef, ks, ksUser, ksPassword )
+            def packageNode = createPackageNode( packageDir, packageFile, packageDef, packageDependencies, ks, ksUser, ksPassword )
 
             project.repoHelper.finalizePublishAction(packageDir, packageFile, packageDef, packageNode, ks, ksUser, ksPassword, fileList)
         }
@@ -74,7 +76,7 @@ class NetKernelPublishPackage extends Copy {
         messageDigest.digest()
     }
     
-    def createPackageNode(def packageDir, def packageFile, def packageDef, def keyStore, def keyStoreUser, def keyStorePassword) {
+    def createPackageNode(def packageDir, def packageFile, def packageDef, def packageDependencies, def keyStore, def keyStoreUser, def keyStorePassword) {
     
         def sw = new StringWriter()
         def xml = new MarkupBuilder(sw)
@@ -108,7 +110,16 @@ class NetKernelPublishPackage extends Copy {
                 sha256(project.hashHelper.hashFile("SHA-256", packageRepoFile))
             }
             
-            dependencies()
+            dependencies {
+               packageDependencies.each { dependency ->
+                  xml.dependency {
+                     xml.name(dependency.name)
+                     deptype(depedency.deptype)
+                     equality(dependency.equality)
+                     version(dependency.version)
+                  }
+               }
+            }
         }
         
         new XmlParser().parseText(sw.toString())

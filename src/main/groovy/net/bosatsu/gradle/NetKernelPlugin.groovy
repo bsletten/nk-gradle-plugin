@@ -26,11 +26,13 @@ import net.bosatsu.util.JarInfo
 import net.bosatsu.util.netkernel.ModuleHelper
 import net.bosatsu.util.netkernel.RepoHelper
 
+import net.bosatsu.gradle.tasks.NetKernelInstallOrUpdatePackage
 import net.bosatsu.gradle.tasks.NetKernelPackage
 import net.bosatsu.gradle.tasks.NetKernelPackageDaemonFile
 import net.bosatsu.gradle.tasks.NetKernelPackageManifestFile
 import net.bosatsu.gradle.tasks.NetKernelPackageModuleFile
 import net.bosatsu.gradle.tasks.NetKernelPublishPackage
+import net.bosatsu.gradle.tasks.NetKernelSynchronize
 import net.bosatsu.gradle.tasks.NetKernelVerifyRepository
 import net.bosatsu.gradle.tasks.NetKernelGenerateRepoConnectionSettings
 import net.bosatsu.gradle.tasks.NetKernelLocalDeploy
@@ -129,9 +131,16 @@ class NetKernelPlugin implements Plugin<Project> {
                 project.tasks.add(name: "nkpublish-$name", type: NetKernelPublishPackage) {
                     packageDef = p
                     packageTask = packageTaskName
+                    packageDependencies = p['dependencies']
                     initialize()
                 }
             }
+            
+//            project.tasks.add(name: "nkinstallorupdate-$name", type: NetKernelInstallOrUpdatePackage)
+//            {
+//               packageName = name
+//               packageVersion = p['version']
+//            }
             
             project.tasks.add(name: "nkdaemon-deploy", type: NetKernelLocalDeploy) {
                 initialize()
@@ -175,6 +184,13 @@ class NetKernelPlugin implements Plugin<Project> {
             }
             
             project.tasks.nkrepoconnection.dependsOn 'nkrepoconnectionsettings'
+            
+            project.tasks.add(name: "nksynchronize", type: NetKernelSynchronize)
+
+            project.tasks.add(name: "nkinstallorupdate")
+            project.tasks.nkinstallorupdate.dependsOn {
+               project.tasks.findAll { task -> task.name.startsWith('nkinstallorupdate-') }
+            }
             
             // TODO: Publish depends on package?
         }
@@ -512,18 +528,21 @@ class NetKernelPlugin implements Plugin<Project> {
         def dependencyMap = [:]
 
         libList.each { f ->
-            def jarInfo = jarHelper.parseJarName(f.getName())
+           if(jarHelper.isJarFile(f.getName())) {
+                def jarInfo = jarHelper.parseJarName(f.getName())
             
-            if((jarInfo.classifier != null) && 
-               (jarInfo.classifier.equals("sources") ||
-               (jarInfo.classifier.equals("javadoc"))))
-            {
-                println "Ignoring: ${jarInfo.base}-${jarInfo.version}-${jarInfo.classifier}"
+                if((jarInfo.classifier != null) && 
+                   (jarInfo.classifier.equals("sources") ||
+                   (jarInfo.classifier.equals("javadoc"))))
+                {
+                    println "Ignoring: ${jarInfo.base}-${jarInfo.version}-${jarInfo.classifier}"
             
-            } else {
-                dependencyMap[jarInfo.base] = jarInfo           
+                } else {
+                    dependencyMap[jarInfo.base] = jarInfo           
+                }
             }
         }
+        
         dependencyMap
     }
 }

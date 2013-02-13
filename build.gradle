@@ -15,7 +15,7 @@ dependencies {
     compile gradleApi()
     
     // Needed for nksynchronize & nkinstallorupdate
-    compile 'org.apache.httpcomponents:httpclient:4.1.2'
+    compile 'org.apache.httpcomponents:httpclient:4.2.3'
     
 	// TODO: Investigate if we can use the Groovy that comes w/ NetKernel to avoid
 	// version problems.

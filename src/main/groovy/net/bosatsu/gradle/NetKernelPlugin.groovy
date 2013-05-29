@@ -300,7 +300,7 @@ class NetKernelPlugin implements Plugin<Project> {
             // TODO: Strip out non-public and other useless imports
             importedModules.remove(thisModule)
             importedModules.remove(nklibs)
-        
+            
             def size = importedModules.size() // TODO: Double-check you don't need this
             
             importedModules.each { m ->
@@ -311,7 +311,6 @@ class NetKernelPlugin implements Plugin<Project> {
                 
                 if(allVersions.size() > 0 ) {
                     def version = allVersions.last()
-            
                     println "Selecting version: $version"
             
                     if(version.startsWith("modules/")) {
@@ -335,9 +334,8 @@ class NetKernelPlugin implements Plugin<Project> {
                     if(peerProject == null) {
                         unresolvedDependencies << fileName
                     } else {
-                        project.sourceSets.main {
-                            compileClasspath += project.files(peerProject)
-                        }
+                        addDependenciesForModule(project, m, peerProject.toString())
+                        setUpRepositories(project, [ "${peerProject}/lib" ])
                     }
                 }
             }
@@ -391,7 +389,7 @@ class NetKernelPlugin implements Plugin<Project> {
             def module = new XmlSlurper().parse(file)
             
             if(module.system.classloader.size() > 0) {
-                setUpDependencies(project, new File("${moduleURI}/lib").listFiles())
+                setUpDependencies(project, new File("${moduleLocation}/lib").listFiles())
             }
         } else {
             def jarDir
@@ -498,7 +496,9 @@ class NetKernelPlugin implements Plugin<Project> {
         def libDirDeps = buildDependencyMapFromList(fileCollection)
         libDirDeps.each { lib, jarInfo -> 
         
-//          println "Checking $lib"
+          if(lib.indexOf('___') < 0) {
+            println "Checking $lib"
+          }
             
             if(jarInfo.classifier != null) {
 //              println "Adding dependency on: ${jarInfo.base}-${jarInfo.version}-${jarInfo.classifier} in ${project}"              

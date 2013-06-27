@@ -227,6 +227,13 @@ class NetKernelPlugin implements Plugin<Project> {
                     output.classesDir = project.projectDir
                 } 
             } 
+            
+            test { 
+                java {
+                    srcDir project.projectDir
+                    output.classesDir = project.projectDir
+                } 
+            }
         }
     
         project.sourceSets { 
@@ -236,6 +243,13 @@ class NetKernelPlugin implements Plugin<Project> {
                     output.classesDir = project.projectDir
                 } 
             } 
+            
+            test { 
+                groovy {
+                    srcDir project.projectDir
+                    output.classesDir = project.projectDir
+                } 
+            }
         }
     
         project.tasks.clean.configure {
@@ -383,6 +397,10 @@ class NetKernelPlugin implements Plugin<Project> {
             
             project.sourceSets.main {
                 compileClasspath += project.files(moduleLocation)
+            }
+            
+            if(moduleLocation.startsWith("file:")) {
+                moduleLocation = moduleLocation.substring(5)
             }
             
             def file = new File("${moduleLocation}/module.xml")

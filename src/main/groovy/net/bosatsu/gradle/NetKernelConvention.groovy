@@ -54,17 +54,22 @@ class NetKernelConvention {
 		
 		if(p.hasProperty('netkernelroot')) {
 			location = p.netkernelroot
+			println "A"
 		}
 		
 		if(location == null) {
 			location = checkForRunningSystem(p)
 			// TODO: Write out to .gradle/gradle.properties?
+			println "B"
 		}
 		
 		if(System.properties.netkernelroot) {
 			overridden = netKernelRootDir != null
 			location = System.properties.netkernelroot
+			println "C"
 		}
+
+		println "Location: " + location
 		
 		if(location != null) {
 			netKernelRootDir = p.file(location)
@@ -90,8 +95,10 @@ class NetKernelConvention {
 		if(repoLocation != null) {
 			netKernelRepoDir = p.file(repoLocation)
 		}
-		
+	
+		if(p.hasProperty('netkernelbaseuri')) {
 		appositeHelper = new AppositeHelper(p.netkernelbaseuri)
+		}
 		repoHelper = new RepoHelper(netKernelRepoDir)
 		hashHelper = new HashHelper()
 		signHelper = new SigningHelper()
@@ -107,10 +114,12 @@ class NetKernelConvention {
 		try {
 		   def u = new URL(LOCAL_INSTALLATION_URL)
 		   def installation = u.getText()
+
+		   println installation
 		
 		   if(p.file(installation).exists()) {
 			  if(installation.startsWith("file:")) {
-				installation = installation.substring(4)
+				installation = installation.substring(5)
 			  }
 		      println "Discovered NetKernel installation: $installation"
 		      retValue = installation

@@ -142,14 +142,14 @@ class NetKernelPlugin implements Plugin<Project> {
 //               packageVersion = p['version']
 //            }
             
-            project.tasks.add(name: "nkdaemon-deploy", type: NetKernelLocalDeploy) {
+         /*   project.tasks.add(name: "nkdaemon-deploy", type: NetKernelLocalDeploy) {
                 initialize()
             }
             // TODO: What does it depend on?
             
             project.tasks.'nkdaemon-deploy'.dependsOn {
                 project.tasks.findAll { task -> task.name.startsWith('nkgenerate-daemon-')}
-            }
+            } */
         
             project.tasks.add('nkpackage') {
             }

@@ -46,7 +46,8 @@ class NetKernelPlugin implements Plugin<Project> {
         'urn.com.ten60.core.layer0',
         'urn.com.ten60.core.module.standard',
         'urn.com.ten60.core.netkernel.api',
-        'urn.com.ten60.core.netkernel.impl'
+        'urn.com.ten60.core.netkernel.impl',
+        'urn.com.ten60.core.cache.ee'
     ]
     
     def unresolvedDependencies = []
